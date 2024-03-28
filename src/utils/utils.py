@@ -35,7 +35,10 @@ def iou(box1, box2, share_center=False):
     if share_center:
         box1_a = box1[..., -2] * box1[..., -1]
         box2_a = box2[..., -2] * box2[..., -1]
-        intersection_a = min(box1[..., -2], box2[..., -2]) * min(box1[..., -1], box2[..., -1])
+
+        intersection_a = min(box1[..., -2], box2[..., -2])
+        intersection_a *= min(box1[..., -1], box2[..., -1])
+
         union_a = box1_a + box2_a - intersection_a
         return intersection_a / union_a
     
@@ -66,37 +69,56 @@ def iou(box1, box2, share_center=False):
         return intersection_a / union_a
 
 
-class ConstructAnchors:
-    def __init__(self, coco, img_width, img_height, n_clusters=9):
-        if isinstance(coco, str): 
-            with open(coco, 'r') as oaf:
-                self.coco = json.load(oaf)
-        elif isinstance(coco, dict):
-            self.coco = coco
+def make_yolo_anchors(coco: str | dict, 
+                      img_width: int, 
+                      img_height: int, 
+                      n_clusters=9,
+                      view_clusters=False):
+    if isinstance(coco, str):
+        try:
+            with open(coco, "r") as oj:
+                coco = json.load(oj)
+        except Exception as e:
+            raise e
 
-        self.bboxes = np.array([
-            [x['bbox'][2] / img_width, x['bbox'][3] / img_height]  
-            for x in self.coco['annotations']
-        ])
-        self._k_means(n_clusters)
+    assert type(coco) == dict
 
-    def _k_means(self, n_clusters=9):
-        self._KMeans = KMeans(n_clusters=n_clusters)
-        self._clusters = self._KMeans.fit_predict(self.bboxes)
-        cluster_centers = self._KMeans.cluster_centers_
-        # sorted_args = np.argsort(np.linalg.norm(cluster_centers, axis=1))[::-1]
-        sorted_args = np.argsort(
-            cluster_centers[:,0] * cluster_centers[:, 1]
-        )[::-1]
-        self.anchors = torch.tensor(np.hstack(
-            (sorted_args.reshape((-1, 1)), cluster_centers[sorted_args])
-        ))
-        return None
+    scaled_bbox_dims = np.array([
+        [x['bbox'][2] / img_width, x['bbox'][3] / img_height]  
+        for x in coco['annotations']
+    ])
 
-    def view_clusters(self, show=True):
+
+    k_means = KMeans(n_clusters=n_clusters)
+    _ = k_means.fit(scaled_bbox_dims)
+    cluster_centers = k_means.cluster_centers_
+
+    sorted_args = np.argsort(
+        cluster_centers[:,0] * cluster_centers[:, 1]
+    )[::-1]
+
+    anchors = torch.tensor(cluster_centers[sorted_args])
+    
+    if not view_clusters:
+        return anchors
+
+    else:
+        clusters = k_means.predict(scaled_bbox_dims)
         fig = plt.figure()
-        plt.scatter(self.bboxes[:, 0], self.bboxes[:, 1], c=self._clusters)
-        if show:
-            plt.show()
-        else:
-            return fig
+        plt.scatter(scaled_bbox_dims[:, 0], scaled_bbox_dims[:, 1], c=clusters)
+        plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], marker="o")
+        plt.show()
+        return anchors
+
+
+if __name__ == "__main__":
+    pass
+
+    import os
+    
+    home = os.environ["HOME"]
+    with open(f"{home}/Datasets/flir/images_thermal_train/coco.json", "r") as oj:
+        coco = json.load(oj)
+    
+    
+    anchors = make_yolo_anchors(coco, 640, 512, 9, True)
