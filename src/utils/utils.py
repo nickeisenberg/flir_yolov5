@@ -1,8 +1,6 @@
 import torch
-from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
 import torch
-from torchvision.transforms import transforms
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
@@ -102,37 +100,3 @@ class ConstructAnchors:
             plt.show()
         else:
             return fig
-
-
-def view_boxes(img, boxes_and_labels: dict, show=True):
-    if isinstance(img, str):
-        img = Image.open(img)
-    
-    if img.mode == 'L':
-        rgb_img = Image.new("RGB", img.size)
-        rgb_img.paste(img)
-        img = rgb_img
-    
-    draw = ImageDraw.Draw(img)
-    
-    for bbox in boxes_and_labels['boxes']:
-        for i in [0]:
-            bottom_right_x = bbox[0] + i + bbox[2]
-            bottom_right_y = bbox[1] + i + bbox[3]
-            draw.rectangle(
-                (bbox[0] + i, bbox[1] + i, bottom_right_x, bottom_right_y), 
-                outline ="red"
-            )
-
-    transform = transforms.Compose([
-        transforms.PILToTensor()
-    ])
-    
-    fig = plt.imshow(torch.permute(transform(img), (1, 2, 0)))
-
-    if show:
-        plt.show()
-
-    else:
-        return fig
-
