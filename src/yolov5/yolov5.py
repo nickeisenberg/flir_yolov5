@@ -147,9 +147,18 @@ class UpAndCat(nn.Module):
 
 
 if __name__ == "__main__":
-    yolo_v5 = YOLOv5(3, 10)
+    yolo_v5 = YOLOv5(3, 5)
     yolo_v5 = yolo_v5.eval()
     with torch.no_grad():
-        output = yolo_v5(torch.randn((10, 3, 512, 640)))
+        output = yolo_v5(torch.randn((15, 3, 512, 640)))
     for scale in output:
         print(scale.shape)
+
+
+output[0].shape
+
+dims = list(zip(*torch.where(output[0][...,0:1] > -100)[:-1]))
+
+dims
+
+output[0][dims[-1]]

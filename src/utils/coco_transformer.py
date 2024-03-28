@@ -97,7 +97,6 @@ def coco_transformer(coco: str | dict,
     return transformed_coco
 
 if __name__ == "__main__":
-
     import os
     import sys
     sys.path.append(f"{os.environ['HOME']}GitRepos/flir_yolov5")
