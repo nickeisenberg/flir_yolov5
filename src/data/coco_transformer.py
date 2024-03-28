@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, cast
 
 
 class COCOjsonTransformer:
@@ -109,7 +109,7 @@ def coco_transformer(coco: str | dict,
         except Exception as e:
             raise e
 
-    assert type(coco) == dict[str, list[dict[str, Any]]]
+    assert type(coco) == dict
 
     class_name_to_id = {cat["name"]: cat["id"] for cat in coco["categories"]}
     class_id_to_name = {cat["id"]: cat["name"] for cat in coco["categories"]}
@@ -189,3 +189,28 @@ def coco_transformer(coco: str | dict,
     }
 
     return transformed_coco
+
+import os
+
+home = os.environ["HOME"]
+with open(f"{home}/Datasets/flir/images_thermal_train/coco.json", "r") as oj:
+    coco = json.load(oj)
+
+
+class_instructions = {}
+for cat in coco["categories"]:
+    if cat["name"] in ["person", "car"]:
+        continue
+    else:
+        class_instructions[cat["name"]] = "ignore"
+
+
+transformed_coco = coco_transformer(
+    coco,
+    class_instructions=class_instructions,
+    x_min_max_width=(40, 612),
+    y_min_max_width=(40, 540),
+    x_pad=(10, 602),
+    y_pad=(1, 530)
+)
+
