@@ -47,16 +47,16 @@ def _populate_yolo_target_for_one_bbox(target: tuple[torch.Tensor, ...],
         iou(anchor, bbox, share_center=True) 
         for anchor in anchors 
     ])
-    ranked_inds = ious.argsort(descending=True)
+    ranked_iou_idxs = ious.argsort(descending=True)
 
     scale_is_assigned = [False, False, False]
 
-    for ranked_ind in ranked_inds:
+    for idx in ranked_iou_idxs:
 
-        scale_id = int(ranked_ind // len(scales))
+        scale_id = int(idx // len(scales))
         scale = scales[scale_id]
 
-        anchor_id = int(ranked_ind % len(scales))
+        anchor_id = int(idx % len(scales))
 
         if by_center:
             row_id = int((y + (h // 2)) // scale)
@@ -69,11 +69,11 @@ def _populate_yolo_target_for_one_bbox(target: tuple[torch.Tensor, ...],
 
         if not is_taken and not scale_is_assigned[scale_id]:
             target[scale_id][anchor_id, row_id, col_id, 0] = 1
+
             x_cell, y_cell = x / scale - col_id, y / scale - row_id
-            width_cell, height_cell = (
-                w / scale,
-                h / scale,
-            )
+
+            width_cell, height_cell = w / scale, h / scale
+
             box_coordinates = torch.tensor(
                 [x_cell, y_cell, width_cell, height_cell]
             )
@@ -81,18 +81,15 @@ def _populate_yolo_target_for_one_bbox(target: tuple[torch.Tensor, ...],
             target[scale_id][anchor_id, row_id, col_id, 5] = int(label_id)
             scale_is_assigned[scale_id] = True
 
-        elif not is_taken and ious[ranked_ind] > iou_thresh:
+        elif not is_taken and ious[idx] > iou_thresh:
             target[scale_id][anchor_id, row_id, col_id, 0] = -1
 
     return target
 
 
-
-
-
-
-
-def decode_yolo_target():
+def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
+                       p_thresh: float,
+                       is_pred: bool = True):
     pass
 
 

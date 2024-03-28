@@ -62,7 +62,11 @@ class YOLOv5(nn.Module):
                 self.predictions.insert(
                     0,
                     pred.view(
-                        pred.shape[0], 3, 5 + self.num_classes, pred.shape[-2], pred.shape[-1]
+                        pred.shape[0], 
+                        3, 
+                        5 + self.num_classes, 
+                        pred.shape[-2], 
+                        pred.shape[-1]
                     ).permute(0, 1, 3, 4, 2)
                 )
                 continue
@@ -85,7 +89,10 @@ class Conv(nn.Module):
         self.bn = nn.BatchNorm2d(out_channels)
 
     def forward(self, x):
-        return self.act(self.bn(self.conv(x))) if self.use_bn else self.act(self.conv(x))
+        if self.use_bn:
+            return self.act(self.bn(self.conv(x)))  
+        else: 
+            return self.act(self.conv(x))
 
 
 class Bottleneck(nn.Module):
@@ -137,3 +144,12 @@ class UpAndCat(nn.Module):
     def forward(self, x, skip):
         x = nn.Upsample(tuple(skip.shape[-2:]))(x)
         return torch.cat((x, skip), 1)
+
+
+if __name__ == "__main__":
+    yolo_v5 = YOLOv5(3, 10)
+    yolo_v5 = yolo_v5.eval()
+    with torch.no_grad():
+        output = yolo_v5(torch.randn((10, 3, 512, 640)))
+    for scale in output:
+        print(scale.shape)
