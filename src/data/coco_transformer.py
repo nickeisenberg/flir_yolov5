@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 
 class COCOjsonTransformer:
@@ -91,3 +92,100 @@ class COCOjsonTransformer:
         self.class_names, self.class_names_inv, self.class_id_mapper = self._make_class_names(self.coco)
 
         return None
+
+
+def coco_transformer(coco: str | dict,
+                     class_instructions: dict[str, str] | None = None,
+                     x_min_max_width: tuple[int, int] | None = None,
+                     y_min_max_width: tuple[int, int] | None = None,
+                     x_pad: tuple[int, int] | None = None,
+                     y_pad: tuple[int, int] | None = None):
+
+    
+    if isinstance(coco, str):
+        try:
+            with open(coco, "r") as oj:
+                coco = json.load(oj)
+        except Exception as e:
+            raise e
+
+    assert type(coco) == dict[str, list[dict[str, Any]]]
+
+    class_name_to_id = {cat["name"]: cat["id"] for cat in coco["categories"]}
+    class_id_to_name = {cat["id"]: cat["name"] for cat in coco["categories"]}
+    
+    transformed_class_name_to_id = {}
+    image_ids_to_keep = []
+    transformed_annots = []
+    for annot in coco["annotations"]:
+        
+        x0, y0, w, h = annot["bbox"]
+        x1, y1 = x0 + w, y0 + h
+
+        if x_min_max_width:
+            if w < x_min_max_width[0] or w > x_min_max_width[1]:
+                continue
+
+        if y_min_max_width:
+            if h < y_min_max_width[0] or h > y_min_max_width[1]:
+                continue
+
+        if x_pad:
+            if x0 < x_pad[0] or x1 > x_pad[1]:
+                continue
+
+        if y_pad:
+            if y0 < y_pad[0] or y1 > y_pad[1]:
+                continue
+
+        cat_name = class_id_to_name[annot["category_id"]]
+
+        if class_instructions:
+            if cat_name in class_instructions:
+                if class_instructions[cat_name] == "ignore":
+                    continue
+
+                else:
+                    new_cat_name = class_instructions[cat_name]
+                    if not new_cat_name in transformed_class_name_to_id:
+                        new_id = len(class_name_to_id) 
+                        new_id += len(transformed_class_name_to_id)
+                        transformed_class_name_to_id[new_cat_name] = new_id
+                       
+            else:
+                new_cat_name = cat_name
+                transformed_class_name_to_id[cat_name] = class_name_to_id[cat_name]
+
+        else:
+            new_cat_name = cat_name
+            transformed_class_name_to_id = class_name_to_id
+                    
+        transformed_annots.append(
+            {
+                "bbox": [x0, y0, w, h],
+                "image_id": annot["image_id"],
+                "id": len(transformed_annots),
+                "category_id": transformed_class_name_to_id[new_cat_name]
+            }
+        )
+
+        if annot["image_id"] not in image_ids_to_keep:
+            image_ids_to_keep.append(annot["image_id"])
+
+    transformed_images = [
+        {"file_name": img["file_name"], "id": img["id"]}
+        for img in coco["images"] if img["id"] in image_ids_to_keep
+    ]
+
+    tranformed_categories = [
+        {"name": name, "id": id} 
+        for name, id in transformed_class_name_to_id.items()
+    ]
+
+    transformed_coco = {
+        'images': transformed_images, 
+        'annotations': transformed_annots, 
+        'categories': tranformed_categories
+    }
+
+    return transformed_coco
