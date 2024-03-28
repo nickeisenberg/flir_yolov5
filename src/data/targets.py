@@ -1,62 +1,114 @@
-from typing import DefaultDict
+from typing import DefaultDict, Iterable
 import torch
-from torch.nn import Sigmoid
+from torch.nn import Sigmoid, Module
 from copy import deepcopy
 
 from ..utils import iou, scale_anchors
 
 
-class YOLOTarget:
-    """
-    A class to build the target for a single image. The annotations for a
-    single image should be in the following form:
+def build_yolo_target(return_shape: tuple[tuple, ...],
+                      bboxes: list[torch.Tensor], 
+                      label_ids: list[int], 
+                      normalized_anchors: list[torch.Tensor], 
+                      scales: list[int],
+                      img_width: int, 
+                      img_height: int,
+                      iou_thresh: float =0.5):
 
-    img_annotes = {
-        boxes: [
-            [x, y, w, h],  # bbox_0
-            [x, y, w, h],  # bbox_1
-            ...
-        ],
-        labels: [
-            bbox_label_0, 
-            bbox_label_1, 
-            ...
-        ]
-    }
+    assert len(return_shape) == len(scales)
+    
+    _target = []
+    for shape in return_shape:
+        _target.append(torch.zeros(shape))
+    target: tuple[torch.Tensor, ...] = tuple(_target)
 
-    Anchors should be vertically stacked as a tensor in decreasing scale and 
-    area. Ie:
+    anchors = scale_anchors(
+        normalized_anchors, 1, img_width, img_height
+    )
 
-    anchors = torch.tensor([
-        [w00, h00],  # scale_0
-        [w01, h01],  # scale_0
-        ...,
-        [wi0, hi0],  # scale_i
-        ...
-        [wNK, hNK],  # scale_N
+    for bbox, label_id in zip(bboxes, label_ids):
+        target = _populate_yolo_target_for_one_bbox(
+            target=target, bbox=bbox, label_id=label_id, anchors=anchors,
+            scales=scales, iou_thresh=iou_thresh
+        )
+
+
+def _populate_yolo_target_for_one_bbox(target: tuple[torch.Tensor, ...], 
+                                       bbox: torch.Tensor, 
+                                       label_id: int,
+                                       anchors: list[torch.Tensor],
+                                       scales: list[int],
+                                       iou_thresh=0.5,
+                                       by_center=False):
+
+    x, y, w, h = bbox
+
+    ious = torch.tensor([
+        iou(anchor, bbox, share_center=True) 
+        for anchor in anchors 
     ])
+    ranked_inds = ious.argsort(descending=True)
 
-    and we need that wik * hik > wjp * hjp whenever i < j and k < p.
-    
+    scale_is_assigned = [False, False, False]
 
-    Parameters:
-    ----------
-    category_id_mapper: dict
-        see class_id_mapper of trfc.dataset.COCODataset
+    for ranked_ind in ranked_inds:
 
-    """
-    
+        scale_id = int(ranked_ind // len(scales))
+        scale = scales[scale_id]
+
+        anchor_id = int(ranked_ind % len(scales))
+
+        if by_center:
+            row_id = int((y + (h // 2)) // scale)
+            col_id = int((x + (w // 2)) // scale)
+        else:
+            row_id = int(y // scale)
+            col_id = int(x // scale)
+
+        is_taken = target[scale_id][anchor_id, row_id, col_id, 0]
+
+        if not is_taken and not scale_is_assigned[scale_id]:
+            target[scale_id][anchor_id, row_id, col_id, 0] = 1
+            x_cell, y_cell = x / scale - col_id, y / scale - row_id
+            width_cell, height_cell = (
+                w / scale,
+                h / scale,
+            )
+            box_coordinates = torch.tensor(
+                [x_cell, y_cell, width_cell, height_cell]
+            )
+            target[scale_id][anchor_id, row_id, col_id, 1:5] = box_coordinates
+            target[scale_id][anchor_id, row_id, col_id, 5] = int(label_id)
+            scale_is_assigned[scale_id] = True
+
+        elif not is_taken and ious[ranked_ind] > iou_thresh:
+            target[scale_id][anchor_id, row_id, col_id, 0] = -1
+
+    return target
+
+
+
+
+
+
+
+def decode_yolo_target():
+    pass
+
+
+class YOLOTarget:
     def __init__(self, 
-                 class_id_mapper: dict, 
+                 global_class_id_to_local_id: dict, 
                  anchors: torch.Tensor, 
                  scales: list, 
                  img_w: int, 
                  img_h: int):
 
-        self.class_id_mapper = class_id_mapper
-        self.class_id_mapper_inv = {
-            v: k for k, v in class_id_mapper.items()
+        self.global_class_id_to_local_id = global_class_id_to_local_id 
+        self.global_class_id_to_local_id_inv = {
+            v: k for k, v in global_class_id_to_local_id.items()
         }
+
         self.anchors = anchors
         self.full_scale_anchors = scale_anchors(anchors, 1, img_w, img_h)
         self.scales = scales 
@@ -66,7 +118,7 @@ class YOLOTarget:
             torch.zeros((3, 32, 40, 6)),
             torch.zeros((3, 64, 80, 6))
         )
-
+    
 
     def build(self, annotes: dict, debug=False):
         """
@@ -98,7 +150,7 @@ class YOLOTarget:
         target: tuple[torch.Tensor, torch.Tensor, torch.Tensor], 
         by_center=False, debug=False):
 
-        cat_id = self.class_id_mapper[cat_id]
+        local_id = self.global_class_id_to_local_id[cat_id]
 
         x, y, w, h = bbox
 
@@ -113,8 +165,10 @@ class YOLOTarget:
         scale_is_assigned = [False, False, False]
 
         for ranked_ind in ranked_inds:
+
             scale_id = int(ranked_ind // len(self.scales))
             scale = self.scales[scale_id]
+
             anchor_id = int(ranked_ind % len(self.scales))
 
             if by_center:
@@ -124,10 +178,10 @@ class YOLOTarget:
                 row_id = int(y // scale)
                 col_id = int(x // scale)
 
-            is_taken = target[scale_id][anchor_id, row_id, col_id, 4]
+            is_taken = target[scale_id][anchor_id, row_id, col_id, 0]
 
             if not is_taken and not scale_is_assigned[scale_id]:
-                target[scale_id][anchor_id, row_id, col_id, 4] = 1
+                target[scale_id][anchor_id, row_id, col_id, 0] = 1
                 x_cell, y_cell = x / scale - col_id, y / scale - row_id
                 width_cell, height_cell = (
                     w / scale,
@@ -136,8 +190,8 @@ class YOLOTarget:
                 box_coordinates = torch.tensor(
                     [x_cell, y_cell, width_cell, height_cell]
                 )
-                target[scale_id][anchor_id, row_id, col_id, 0:4] = box_coordinates
-                target[scale_id][anchor_id, row_id, col_id, 5] = int(cat_id)
+                target[scale_id][anchor_id, row_id, col_id, 1:5] = box_coordinates
+                target[scale_id][anchor_id, row_id, col_id, 5] = int(local_id)
                 scale_is_assigned[scale_id] = True
 
             elif not is_taken and ious[ranked_ind] > iou_thresh:
@@ -170,13 +224,13 @@ class YOLOTarget:
                     x, y = (x + dim[2].item()) * scale, (y + dim[1].item()) * scale
                     w = torch.exp(w) * scaled_ancs[dim[0]][0] * scale
                     h = torch.exp(h) * scaled_ancs[dim[0]][1] * scale
-                    cat = self.class_id_mapper_inv[cat.item()]
+                    cat = self.global_class_id_to_local_id_inv[cat.item()]
                 else:
                     x, y, w, h, p, cat = t[dim]
                     x, y = (x + dim[2].item()) * scale, (y + dim[1].item()) * scale
                     w = w * scale
                     h = h * scale
-                    cat = self.class_id_mapper_inv[cat.item()]
+                    cat = self.global_class_id_to_local_id_inv[cat.item()]
                 decoded['boxes'].append(
                     [x.item(), y.item(), w.item(), h.item()]
                 )

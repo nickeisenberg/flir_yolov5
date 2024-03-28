@@ -4,6 +4,7 @@ from typing import Tuple
 
 from ..utils import iou
 
+
 class YOLOLoss(nn.Module):
     def __init__(self, device):
         super().__init__()

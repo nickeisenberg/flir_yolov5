@@ -17,7 +17,7 @@ def scale_anchors(anchors, scale, img_w, img_h, device="cpu"):
     return scaled_anchors
 
 
-def iou(box1, box2, share_center=False):
+def iou(box1: torch.Tensor, box2:torch.Tensor, share_center=False):
     """
     Parameters
     ----------
@@ -36,8 +36,8 @@ def iou(box1, box2, share_center=False):
         box1_a = box1[..., -2] * box1[..., -1]
         box2_a = box2[..., -2] * box2[..., -1]
 
-        intersection_a = min(box1[..., -2], box2[..., -2])
-        intersection_a *= min(box1[..., -1], box2[..., -1])
+        intersection_a = torch.min(box1[..., -2], box2[..., -2]).item()
+        intersection_a *= torch.min(box1[..., -1], box2[..., -1]).item()
 
         union_a = box1_a + box2_a - intersection_a
         return intersection_a / union_a
