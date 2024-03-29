@@ -1,13 +1,13 @@
 import torch
 from torch.nn import Sigmoid
 
-from ..utils import iou, scale_anchors
+from ..utils import iou
 
 
 def build_yolo_target(return_shape: tuple[tuple, ...],
                       bboxes: list[torch.Tensor], 
                       label_ids: list[int], 
-                      normalized_anchors: list[torch.Tensor], 
+                      normalized_anchors: torch.Tensor, 
                       scales: list[int],
                       img_width: int, 
                       img_height: int,
@@ -20,9 +20,7 @@ def build_yolo_target(return_shape: tuple[tuple, ...],
         _target.append(torch.zeros(shape))
     target: tuple[torch.Tensor, ...] = tuple(_target)
 
-    anchors = scale_anchors(
-        normalized_anchors, 1, img_width, img_height
-    )
+    anchors = normalized_anchors * torch.tensor([img_width, img_height])
 
     for bbox, label_id in zip(bboxes, label_ids):
         target = _populate_yolo_target_for_one_bbox(
@@ -36,7 +34,7 @@ def build_yolo_target(return_shape: tuple[tuple, ...],
 def _populate_yolo_target_for_one_bbox(target: tuple[torch.Tensor, ...], 
                                        bbox: torch.Tensor, 
                                        label_id: int,
-                                       anchors: list[torch.Tensor],
+                                       anchors: torch.Tensor,
                                        scales: list[int],
                                        iou_thresh=0.5,
                                        by_center=False):
@@ -105,35 +103,38 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
     }
 
     for scale_id, t in enumerate(yolo_output):
+
         scale = scales[scale_id]
-        scaled_ancs = scale_anchors(
-            normalized_anchors[3 * scale_id: 3 * (scale_id + 1)], 
-            scale, 640, 512
+        scaled_ancs = normalized_anchors * torch.tensor(
+            [img_width / scale, img_height / scale]
         )
+
         dims: list[tuple[torch.Tensor, ...]] = list(
             zip(*torch.where(t[..., 0:1] >= p_thresh)[:-1])
         )
 
-
         for dim in dims:
             if is_pred:
+                batch_id, anc_id, row, col = dim
+
                 bbox_info = t[dim][: 5]
-                bbox_info[1:3] = sigmoid(bbox_info[:2])
-                bbox_info[0] = sigmoid(bbox_info[0])
+                bbox_info[:3] = sigmoid(bbox_info[:3])
 
                 p, x, y, w, h = bbox_info
 
                 label_id = torch.argmax(t[dim][5:])
 
-                x = x + dim[2].item() * scale
-                y = y + dim[1].item() * scale
+                x = (x + col.item()) * scale
+                y = (y + row.item()) * scale
 
-                w = torch.exp(w) * scaled_ancs[dim[1]][0] * scale
-                h = torch.exp(h) * scaled_ancs[dim[1]][1] * scale
+                w = torch.exp(w) * scaled_ancs[anc_id][0] * scale
+                h = torch.exp(h) * scaled_ancs[anc_id][1] * scale
 
             else:
-                x, y, w, h, p, label_id = t[dim]
-                x, y = (x + dim[2].item()) * scale, (y + dim[1].item()) * scale
+                anc_id, row, col = dim
+
+                p, x, y, w, h, label_id = t[dim]
+                x, y = (x + col.item()) * scale, (y + row.item()) * scale
                 w = w * scale
                 h = h * scale
 
@@ -176,29 +177,35 @@ return_shape = (
     (3, 64, 80, 6),
 )
 bboxes = [
-    torch.tensor([100, 100, 50 ,50])
+    torch.tensor([100, 100, 50 ,50]),
+    torch.tensor([200, 200, 40 ,40])
 ]
-label_ids = [1]
+label_ids = [1, 2]
 scales = [32, 16, 8]
 img_width = 640
 img_height = 512
+
 
 target = build_yolo_target(
     return_shape, bboxes, label_ids, anchors, scales, img_width, img_height
 )
 
+batched_target = tuple([t.unsqueeze(0) for t in target])
 
-dims: list[torch.Tensor] = list(
-    zip(*torch.where(target[0][..., 0:1] >= -100)[:-1])
-)
-
-list(dims[0])
+for t in target:
+    dims: list[tuple[torch.Tensor, ...]] = list(
+        zip(*torch.where(t[..., 0:1] >= .8)[:-1])
+    )
+    for dim in dims:
+        print(t[dim])
+        break
+    break
 
 decoded = decode_yolo_output(target, .8, anchors, scales, False)
 
-decoded["boxes"]
+decoded = decode_yolo_output(batched_target, .8, anchors, scales, True)
 
-    
+decoded["boxes"]
 
 
 

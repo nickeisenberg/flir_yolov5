@@ -8,7 +8,12 @@ import json
 import torch
 
 
-def scale_anchors(anchors, scale, img_w, img_h, device="cpu"):
+def scale_anchors(anchors: torch.Tensor, 
+                  scale: int, 
+                  img_w: int, 
+                  img_h: int, 
+                  device="cpu"):
+
     scaler = torch.tensor([
         img_w / min(scale, img_w), 
         img_h / min(scale, img_h)
