@@ -35,11 +35,11 @@ class YOLOLoss(nn.Module):
         (t1, t2, t3) tk.shape = (batch, 3, row, col, ____)
         """
 
-        obj = target[..., 4] == 1
-        no_obj = target[..., 4] == 0
+        obj = target[..., 0] == 1
+        no_obj = target[..., 0] == 0
 
         no_object_loss = self.bce( 
-            (pred[..., 4:5][no_obj]), (target[..., 4:5][no_obj]), 
+            (pred[..., 0:1][no_obj]), (target[..., 0:1][no_obj]), 
         )
 
         scaled_anchors = scaled_anchors.reshape((1, 3, 1, 1, 2))
@@ -48,26 +48,26 @@ class YOLOLoss(nn.Module):
 
             box_preds = torch.cat(
                 [
-                    self.sigmoid(pred[..., 0: 2]), 
-                    torch.exp(pred[..., 2: 4]) * scaled_anchors
+                    self.sigmoid(pred[..., 1: 3]), 
+                    torch.exp(pred[..., 3: 5]) * scaled_anchors
                 ],
                 dim=-1
             ) 
 
-            ious = iou(box_preds[obj], target[..., 0: 4][obj]).detach() 
+            ious = iou(box_preds[obj], target[..., 1: 5][obj]).detach() 
             
             object_loss = self.mse(
-                self.sigmoid(pred[..., 4: 5][obj]), 
-                ious * target[..., 4: 5][obj]
+                self.sigmoid(pred[..., 0: 1][obj]), 
+                ious * target[..., 0: 1][obj]
             ) 
 
             # Calculating box coordinate loss
-            pred[..., 0: 2] = self.sigmoid(pred[..., 0: 2])
-            target[..., 2: 4] = torch.log(1e-6 + target[..., 2: 4] / scaled_anchors) 
+            pred[..., 1: 3] = self.sigmoid(pred[..., 1: 3])
+            target[..., 3: 5] = torch.log(1e-6 + target[..., 3: 5] / scaled_anchors) 
 
             box_loss = self.mse(
-                pred[..., 0: 4][obj], 
-                target[..., 0: 4][obj]
+                pred[..., 1: 5][obj], 
+                target[..., 1: 5][obj]
             )
 
             # Claculating class loss 

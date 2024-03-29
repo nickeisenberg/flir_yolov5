@@ -190,7 +190,7 @@ if __name__ == "__main__":
     )
     
     batched_target = tuple([t.unsqueeze(0) for t in target])
-    
+
     for t in target:
         dims: list[tuple[torch.Tensor, ...]] = list(
             zip(*torch.where(t[..., 0:1] >= .8)[:-1])
