@@ -57,13 +57,15 @@ class Trainer:
             data = self.unpacker(data, device)
 
             if which == "train":
-                self.model.train_batch_pass(*data)
+                batch_history = self.train_batch_pass(*data)
+                pbar.set_postfix(None, True, **batch_history)
 
             elif which == "val":
-                self.model.val_batch_pass(*data)
+                batch_history = self.val_batch_pass(*data)
+                pbar.set_postfix(None, True, **batch_history)
 
 
-    def train_batch_pass(self, *args, **kwargs):
+    def train_batch_pass(self, *args):
         inputs, targets = args
         self.model.train()
         self.optimizer.zero_grad()
@@ -72,15 +74,17 @@ class Trainer:
         self.logger.log_batch(batch_history)
         loss.backward()
         self.optimizer.state_dict()
+        return batch_history
 
 
-    def val_batch_pass(self, *args, **kwargs):
+    def val_batch_pass(self, *args):
         inputs, targets = args
         self.model.eval()
         with torch.no_grad():
             outputs = self.model(inputs)
             _, batch_history = self.loss_fn(outputs, targets)
             self.logger.log_batch(batch_history)
+        return batch_history
 
 
     @staticmethod
@@ -101,5 +105,3 @@ class Trainer:
             os.makedirs(logger.state_dict_root)
         print(f"State dicts will be saved to {logger.state_dict_root}")
         return None
-
-
