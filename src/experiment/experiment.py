@@ -13,6 +13,8 @@ class Trainer(TrainerModule):
                  optimizer: torch.optim.Optimizer,
                  save_root: str):
 
+        super().__init__()
+
         self.loss_log_root = save_root
         self.state_dict_root = save_root
         
@@ -37,3 +39,5 @@ class Trainer(TrainerModule):
             outputs = self.model(inputs)
             _, batch_history = self.loss_fn(outputs, targets)
             self.logger.log_batch(batch_history)
+
+

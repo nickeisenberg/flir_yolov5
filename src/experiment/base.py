@@ -1,10 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch import Tensor
-from typing import Callable, Tuple
 from tqdm import tqdm
 
 from .logger import CSVLogger
@@ -63,9 +59,7 @@ class TrainerModule(ABC):
         root = os.getcwd()
         loss_log_root = os.path.join(root, "loss_logs")
         state_dict_root = os.path.join(root, "state_dicts")
-
         logger = CSVLogger(loss_log_root, state_dict_root)
-
         return logger
 
     @staticmethod
@@ -73,7 +67,6 @@ class TrainerModule(ABC):
         if not os.path.isdir(logger.loss_log_root):
             os.makedirs(logger.loss_log_root)
         print(f"Loss logs will be saved to {logger.loss_log_root}")
-
         if not os.path.isdir(logger.state_dict_root):
             os.makedirs(logger.state_dict_root)
         print(f"State dicts will be saved to {logger.state_dict_root}")
