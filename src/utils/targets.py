@@ -157,56 +157,51 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
 
 
 if __name__ == "__main__":
-    pass
 
-import os
-from sys import path
-path.append(f"{os.environ['HOME']}GitRepos/flir_yolov5")
-import json
-from src.utils.utils import make_yolo_anchors, scale_anchors, iou
-
-home = os.environ["HOME"]
-with open(f"{home}/Datasets/flir/images_thermal_train/coco.json", "r") as oj:
-    coco = json.load(oj)
-
-anchors = make_yolo_anchors(coco, 640, 512, 9)
-
-return_shape = (
-    (3, 16, 20, 6),
-    (3, 32, 40, 6),
-    (3, 64, 80, 6),
-)
-bboxes = [
-    torch.tensor([100, 100, 50 ,50]),
-    torch.tensor([200, 200, 40 ,40])
-]
-label_ids = [1, 2]
-scales = [32, 16, 8]
-img_width = 640
-img_height = 512
-
-
-target = build_yolo_target(
-    return_shape, bboxes, label_ids, anchors, scales, img_width, img_height
-)
-
-batched_target = tuple([t.unsqueeze(0) for t in target])
-
-for t in target:
-    dims: list[tuple[torch.Tensor, ...]] = list(
-        zip(*torch.where(t[..., 0:1] >= .8)[:-1])
+    import os
+    from sys import path
+    path.append(f"{os.environ['HOME']}GitRepos/flir_yolov5")
+    import json
+    from src.utils.utils import make_yolo_anchors, scale_anchors, iou
+    
+    home = os.environ["HOME"]
+    with open(f"{home}/Datasets/flir/images_thermal_train/coco.json", "r") as oj:
+        coco = json.load(oj)
+    
+    anchors = make_yolo_anchors(coco, 640, 512, 9)
+    
+    return_shape = (
+        (3, 16, 20, 6),
+        (3, 32, 40, 6),
+        (3, 64, 80, 6),
     )
-    for dim in dims:
-        print(t[dim])
+    bboxes = [
+        torch.tensor([100, 100, 50 ,50]),
+        torch.tensor([200, 200, 40 ,40])
+    ]
+    label_ids = [1, 2]
+    scales = [32, 16, 8]
+    img_width = 640
+    img_height = 512
+    
+    
+    target = build_yolo_target(
+        return_shape, bboxes, label_ids, anchors, scales, img_width, img_height
+    )
+    
+    batched_target = tuple([t.unsqueeze(0) for t in target])
+    
+    for t in target:
+        dims: list[tuple[torch.Tensor, ...]] = list(
+            zip(*torch.where(t[..., 0:1] >= .8)[:-1])
+        )
+        for dim in dims:
+            print(t[dim])
+            break
         break
-    break
-
-decoded = decode_yolo_output(target, .8, anchors, scales, False)
-
-decoded = decode_yolo_output(batched_target, .8, anchors, scales, True)
-
-decoded["boxes"]
-
-
-
-
+    
+    decoded = decode_yolo_output(target, .8, anchors, scales, False)
+    decoded["boxes"]
+    
+    decoded = decode_yolo_output(batched_target, .8, anchors, scales, True)
+    decoded["boxes"]
