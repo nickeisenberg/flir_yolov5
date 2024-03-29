@@ -155,10 +155,3 @@ if __name__ == "__main__":
         print(scale.shape)
 
 
-output[0].shape
-
-dims = list(zip(*torch.where(output[0][...,0:1] > -100)[:-1]))
-
-dims
-
-output[0][dims[-1]]

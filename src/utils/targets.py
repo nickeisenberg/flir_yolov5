@@ -30,6 +30,8 @@ def build_yolo_target(return_shape: tuple[tuple, ...],
             scales=scales, iou_thresh=iou_thresh
         )
 
+    return target
+
 
 def _populate_yolo_target_for_one_bbox(target: tuple[torch.Tensor, ...], 
                                        bbox: torch.Tensor, 
@@ -108,9 +110,10 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
             normalized_anchors[3 * scale_id: 3 * (scale_id + 1)], 
             scale, 640, 512
         )
-        dims: list[torch.Tensor] = list(
+        dims: list[tuple[torch.Tensor, ...]] = list(
             zip(*torch.where(t[..., 0:1] >= p_thresh)[:-1])
         )
+
 
         for dim in dims:
             if is_pred:
@@ -139,7 +142,7 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
             )
             decoded_output['labels'].append(int(label_id.item()))
             decoded_output['scores'].append(p.item())
-            decoded_output['locs'].append(dim.tolist())
+            decoded_output['locs'].append(list(dim))
 
     for k in decoded_output.keys():
         decoded_output[k] = torch.tensor(decoded_output[k])
@@ -150,3 +153,53 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
         decoded_output[k] = decoded_output[k][ranked_inds]
 
     return decoded_output
+
+
+if __name__ == "__main__":
+    pass
+
+import os
+from sys import path
+path.append(f"{os.environ['HOME']}GitRepos/flir_yolov5")
+import json
+from src.utils.utils import make_yolo_anchors, scale_anchors, iou
+
+home = os.environ["HOME"]
+with open(f"{home}/Datasets/flir/images_thermal_train/coco.json", "r") as oj:
+    coco = json.load(oj)
+
+anchors = make_yolo_anchors(coco, 640, 512, 9)
+
+return_shape = (
+    (3, 16, 20, 6),
+    (3, 32, 40, 6),
+    (3, 64, 80, 6),
+)
+bboxes = [
+    torch.tensor([100, 100, 50 ,50])
+]
+label_ids = [1]
+scales = [32, 16, 8]
+img_width = 640
+img_height = 512
+
+target = build_yolo_target(
+    return_shape, bboxes, label_ids, anchors, scales, img_width, img_height
+)
+
+
+dims: list[torch.Tensor] = list(
+    zip(*torch.where(target[0][..., 0:1] >= -100)[:-1])
+)
+
+list(dims[0])
+
+decoded = decode_yolo_output(target, .8, anchors, scales, False)
+
+decoded["boxes"]
+
+    
+
+
+
+
