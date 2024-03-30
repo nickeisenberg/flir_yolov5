@@ -15,28 +15,25 @@ class CSVLogger:
         self.state_dict_root = os.path.join(save_root, "state_dicts")
 
         self.best_key = best_key
-        
-        self.train_history = {}
-        self.val_history = {}
 
         self._epoch_history = defaultdict(list)
+        self._avg_epoch_history = defaultdict(float)
         
         self.best_val_loss = 1e6
         self.best_train_loss = 1e6
 
 
-    def log_batch(self, loss_dict: dict, reduce: str | None ="mean") -> None:
+    def log_batch(self, loss_dict: dict) -> None:
         """
         Log loss after each batch. Update the CSV or whatever file.
         """
 
         for key in loss_dict:
-            if reduce == "mean":
-                self._epoch_history[key].append(np.mean(loss_dict[key]))
-            elif reduce == "none" or reduce is None:
-                self._epoch_history[key].append(loss_dict[key])
-            else:
-                raise Exception("reduce must be mean or none")
+            self._epoch_history[key].append(loss_dict[key])
+
+            self._avg_epoch_history[key] = sum(
+                self._epoch_history[key]
+            ) / len(self._epoch_history[key])
         
 
     def log_epoch(self, which, epoch) -> None:
@@ -51,11 +48,6 @@ class CSVLogger:
         else:
             df.to_csv(loss_log_file_path, mode='a', header=False, index=False)
         
-        if which == "train":
-            self.train_history[epoch] = self._epoch_history
-        elif which == "val":
-            self.val_history[epoch] = self._epoch_history
-
         self._epoch_history = defaultdict(list)
 
     

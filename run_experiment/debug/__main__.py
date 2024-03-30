@@ -17,5 +17,4 @@ trainer.fit(
     num_epochs=config["num_epochs"], 
     device=config["device"],
     val_loader=config["val_loader"],
-    test_loader=config["test_loader"]
 )

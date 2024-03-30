@@ -45,12 +45,12 @@ class Trainer:
         for epoch in range(1, num_epochs + 1):
             self.epoch_pass("train", train_loader, device)
             self.logger.log_epoch("train", epoch)
-            self.logger.save_checkpoint("train", epoch, self.model)
+            # self.logger.save_checkpoint("train", epoch, self.model)
 
             if val_loader is not None:
                 self.epoch_pass("val", val_loader, device)
                 self.logger.log_epoch("val", epoch)
-                self.logger.save_checkpoint("val", epoch, self.model)
+                # self.logger.save_checkpoint("val", epoch, self.model)
 
             if test_loader is not None:
                 self.epoch_pass("test", test_loader, device)
@@ -63,12 +63,12 @@ class Trainer:
             inputs, targets = self.unpacker(data, device)
 
             if which == "train":
-                batch_history = self.train_batch_pass(inputs, targets)
-                pbar.set_postfix(None, True, **batch_history)
+                self.train_batch_pass(inputs, targets)
+                pbar.set_postfix(None, True, **self.logger._avg_epoch_history)
 
             elif which == "val":
-                batch_history = self.val_batch_pass(inputs, targets)
-                pbar.set_postfix(None, True, **batch_history)
+                self.val_batch_pass(inputs, targets)
+                pbar.set_postfix(None, True, **self.logger._avg_epoch_history)
 
 
     def train_batch_pass(self, inputs, targets):
@@ -81,7 +81,6 @@ class Trainer:
         self.optimizer.state_dict()
 
         self.logger.log_batch(batch_history)
-        return batch_history
 
 
     def val_batch_pass(self, inputs, targets):
@@ -91,8 +90,6 @@ class Trainer:
             outputs = self.model(inputs)
             _, batch_history = self.loss_fn(outputs, targets)
             self.logger.log_batch(batch_history)
-
-        return batch_history
 
 
     @staticmethod

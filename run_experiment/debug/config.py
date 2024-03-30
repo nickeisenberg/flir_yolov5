@@ -63,7 +63,6 @@ config = {
     "optimizer": optimizer,
     "train_loader": train_loader,
     "val_loader": val_loader,
-    "test_loader": test_loader,
     "num_epochs": num_epochs,
     "device": device
 }
