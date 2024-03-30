@@ -7,9 +7,12 @@ from collections import defaultdict
 
 
 class CSVLogger:
-    def __init__(self, loss_log_root, state_dict_root, best_key='total_loss'):
-        self.loss_log_root = loss_log_root 
-        self.state_dict_root = state_dict_root 
+    def __init__(self,
+                 save_root: str,
+                 best_key='total_loss'):
+        
+        self.loss_log_root = os.path.join(save_root, "loss_logs")
+        self.state_dict_root = os.path.join(save_root, "state_dicts")
 
         self.best_key = best_key
         
@@ -49,9 +52,9 @@ class CSVLogger:
             df.to_csv(loss_log_file_path, mode='a', header=False, index=False)
         
         if which == "train":
-            self.train_history[epoch](self._epoch_history)
+            self.train_history[epoch] = self._epoch_history
         elif which == "val":
-            self.val_history[epoch](self._epoch_history)
+            self.val_history[epoch] = self._epoch_history
 
         self._epoch_history = defaultdict(list)
 
