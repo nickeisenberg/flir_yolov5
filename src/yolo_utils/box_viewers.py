@@ -41,7 +41,7 @@ def view_boxes_from_coco_image_id(coco: str | dict,
         return fig
 
 
-def view_boxes(img, boxes: list, show=True):
+def view_boxes(img: str | Image.Image, boxes: list, show=True):
     if isinstance(img, str):
         img = Image.open(img)
     

@@ -10,7 +10,14 @@ from torch.utils.data import Dataset
 from .targets import build_yolo_target
 
 
-def make_data_from_coco(coco: dict):
+def yolo_unpacker(data, device):
+    img_ten = data[0].to(device)
+    yolo_target_tuple = tuple([d.to(device) for d in data[1]])
+    return img_ten, yolo_target_tuple
+
+
+
+def make_data_from_coco(coco: dict, file_name_root: str) -> dict:
     """
     {
         idx: {
@@ -26,7 +33,7 @@ def make_data_from_coco(coco: dict):
     img_id_to_idx = {}
     for img in coco["images"]:
         img_id = img["id"]
-        file_name = img["file_name"]
+        file_name = os.path.join(file_name_root, img["file_name"])
 
         idx = len(data)
         data[idx] = {
@@ -71,12 +78,12 @@ class YoloDataset(Dataset):
 
         self.img_transform = img_tranform
 
-        self.data = make_data_from_coco(self.coco)
+        self.data = make_data_from_coco(self.coco, self.img_root)
 
 
     def __getitem__(self, idx):
         data = self.data[idx]
-        file_name = os.path.join(self.img_root, data["file_name"])
+        file_name = data["file_name"]
         bboxes = data["bboxes"]
         category_ids = data["category_ids"]
 
@@ -105,6 +112,7 @@ if __name__ == "__main__":
 
     from src.yolo_utils.targets import build_yolo_target, decode_yolo_output
     from src.yolo_utils.utils import make_yolo_anchors
+    from src.yolo_utils.box_viewers import view_boxes
     
     path = os.path.expanduser("~/Datasets/flir/images_thermal_train/coco.json")
     with open(path, "r") as oj:
@@ -115,10 +123,16 @@ if __name__ == "__main__":
         (3, 32, 40, 6),
         (3, 64, 80, 6),
     )
-    anchors = make_yolo_anchors(coco, 640, 512, 9)
-    
+    img_width = 640
+    img_height = 512
+    anchors = make_yolo_anchors(coco, img_width, img_height, 9)
     scales = [32, 16, 8]
-    
     img_root = os.path.expanduser("~/Datasets/flir/images_thermal_train/")
-    
     dataset = YoloDataset(coco, img_root, return_shape, anchors, scales)
+    
+    decoded = decode_yolo_output(
+        dataset[0][1], img_width, img_height, .9, anchors, scales, False
+    )
+    
+    view_boxes(dataset.data[0]["file_name"], dataset.data[0]["bboxes"])
+    view_boxes(dataset.data[0]["file_name"], decoded["bboxes"])

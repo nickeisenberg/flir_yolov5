@@ -94,13 +94,16 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
 
     sigmoid = Sigmoid()
 
-    boxes: list[float] = []
-    labels: list[int] = []
+    bboxes: list[float] = []
+    category_ids: list[int] = []
     scores: list[float] = []
-    locs: list[int] = []
+    dims: list[int] = []
 
     decoded_output = {
-        "boxes": boxes, "labels": labels, "scores": scores, "locs": locs
+        "bboxes": bboxes, 
+        "category_ids": category_ids, 
+        "scores": scores, 
+        "dims": dims 
     }
 
     for scale_id, t in enumerate(yolo_output):
@@ -110,11 +113,11 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
             [img_width / scale, img_height / scale]
         )
 
-        dims: list[tuple[torch.Tensor, ...]] = list(
+        dims_where: list[tuple[torch.Tensor, ...]] = list(
             zip(*torch.where(t[..., 0:1] >= p_thresh)[:-1])
         )
 
-        for dim in dims:
+        for dim in dims_where:
             if is_pred:
                 batch_id, anc_id, row, col = dim
 
@@ -139,12 +142,12 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
                 w = w * scale
                 h = h * scale
 
-            decoded_output['boxes'].append(
+            decoded_output['bboxes'].append(
                 [x.item(), y.item(), w.item(), h.item()]
             )
-            decoded_output['labels'].append(int(label_id.item()))
+            decoded_output['category_ids'].append(int(label_id.item()))
             decoded_output['scores'].append(p.item())
-            decoded_output['locs'].append(list(dim))
+            decoded_output['dims'].append(list(dim))
 
     for k in decoded_output.keys():
         decoded_output[k] = torch.tensor(decoded_output[k])

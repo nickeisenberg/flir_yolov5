@@ -20,15 +20,19 @@ class Trainer:
                  loss_fn: Callable[[Tensor, Tensor], Tuple[Tensor, dict]],
                  optimizer: torch.optim.Optimizer,
                  save_root: str,
+                 unpacker: Callable | None = None,
                  metrics: list | None = None):
         
         self.model = model
         self.loss_fn = loss_fn
         self.optimizer = optimizer
 
-        self.unpacker = default_unpacker
-
         self.save_root = save_root
+    
+        if not unpacker:
+            self.unpacker = default_unpacker
+        else:
+            self.unpacker = unpacker
 
         self.metrics = metrics
 

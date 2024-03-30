@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from typing import Tuple
 
-from ..utils import iou
+from .utils import iou
 
 
 class YOLOLoss(nn.Module):
@@ -93,4 +93,5 @@ class YOLOLoss(nn.Module):
         history["total_loss"] = total_loss.item()
 
         return total_loss, history
+
 
