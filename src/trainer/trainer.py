@@ -17,15 +17,10 @@ def default_unpacker(data, device):
 class Trainer:
     def __init__(self,
                  model: nn.Module,
-                 loss_fn: Callable[[Tensor, Tensor], Tuple[Tensor, dict]],
-                 optimizer: torch.optim.Optimizer,
                  save_root: str,
-                 unpacker: Callable | None = None,
-                 metrics: list | None = None):
+                 unpacker: Callable | None = None):
         
         self.model = model
-        self.loss_fn = loss_fn
-        self.optimizer = optimizer
 
         self.save_root = save_root
     
@@ -34,12 +29,6 @@ class Trainer:
         else:
             self.unpacker = unpacker
 
-        self.metrics = metrics
-
-        self.logger = CSVLogger(
-            os.path.join(save_root, "loss_logs"),
-            os.path.join(save_root, "state_dicts"),
-        )
 
     def fit(self, 
             train_loader: DataLoader,
@@ -49,23 +38,21 @@ class Trainer:
     
         self.model = self.model.to(device)
 
-        self._config_log_roots(self.logger)
+        self._config_log_roots(self.model.logger)
 
         for epoch in range(1, num_epochs + 1):
             self.epoch_pass("train", train_loader, device)
-            self.logger.log_epoch("train")
-            if self.metrics:
-                for metric in self.metrics:
-                    metric.reset_on_epoch()
-            self.logger.save_checkpoint("train", epoch, self.model)
+            self.model.logger.log_epoch("train")
+            self.model.logger.save_checkpoint(
+                "train", epoch, self.model.model
+            )
 
             if val_loader is not None:
                 self.epoch_pass("val", val_loader, device)
-                self.logger.log_epoch("val")
-                if self.metrics:
-                    for metric in self.metrics:
-                        metric.reset_on_epoch()
-                self.logger.save_checkpoint("val", epoch, self.model)
+                self.model.logger.log_epoch("val")
+                self.model.logger.save_checkpoint(
+                    "val", epoch, self.model.model
+                )
 
 
     def epoch_pass(self, which: str, loader: DataLoader, device: str):
@@ -76,11 +63,15 @@ class Trainer:
 
             if which == "train":
                 self.model.train_batch_pass(*data)
-                pbar.set_postfix(None, True, **self.logger._avg_epoch_history)
+                pbar.set_postfix(
+                    None, True, **self.model.logger._avg_epoch_history
+                )
 
             elif which == "val":
                 self.model.val_batch_pass(*data)
-                pbar.set_postfix(None, True, **self.logger._avg_epoch_history)
+                pbar.set_postfix(
+                    None, True, **self.model.logger._avg_epoch_history
+                )
 
 
     @staticmethod
