@@ -13,9 +13,13 @@ loss_fn = YOLOLoss(device)
 
 optimizer = Adam(model.parameters(), lr=.001)
 
+save_root = os.path.relpath(__file__)
+save_root = save_root.split(os.path.basename(save_root))[0]
+
 config = {
     "model": model,
     "loss_fn": loss_fn,
     "optimizer": optimizer,
-    "device": device
+    "device": device,
+    "save_root": save_root
 }

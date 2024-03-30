@@ -1,4 +1,3 @@
-from collections import defaultdict
 from torch import Tensor, tensor, hstack
 from numpy import round
 

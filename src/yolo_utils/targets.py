@@ -1,8 +1,7 @@
 import torch
 from torch.nn import Sigmoid
 
-from ..utils import iou
-
+from ..yolo_utils.utils import iou
 
 def build_yolo_target(return_shape: tuple[tuple, ...],
                       bboxes: list[torch.Tensor], 
@@ -86,6 +85,8 @@ def _populate_yolo_target_for_one_bbox(target: tuple[torch.Tensor, ...],
 
 
 def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
+                       img_width,
+                       img_height,
                        p_thresh: float,
                        normalized_anchors,
                        scales,
@@ -157,12 +158,11 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
 
 
 if __name__ == "__main__":
-
     import os
     from sys import path
     path.append(f"{os.environ['HOME']}GitRepos/flir_yolov5")
     import json
-    from src.utils.utils import make_yolo_anchors, scale_anchors, iou
+    from src.yolo_utils.utils import make_yolo_anchors, scale_anchors, iou
     
     home = os.environ["HOME"]
     with open(f"{home}/Datasets/flir/images_thermal_train/coco.json", "r") as oj:
@@ -200,8 +200,8 @@ if __name__ == "__main__":
             break
         break
     
-    decoded = decode_yolo_output(target, .8, anchors, scales, False)
+    decoded = decode_yolo_output(target, img_width, img_height, .8, anchors, scales, False)
     decoded["boxes"]
     
-    decoded = decode_yolo_output(batched_target, .8, anchors, scales, True)
+    decoded = decode_yolo_output(batched_target, img_width, img_height, .8, anchors, scales, True)
     decoded["boxes"]
