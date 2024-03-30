@@ -11,6 +11,7 @@ mnist = MNIST(
 train_dataset = Subset(mnist, range(50000))
 val_dataset = Subset(mnist, range(50000, 60000))
 
+
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
@@ -39,7 +40,6 @@ class Loss(nn.Module):
         loss = self.loss(predictions, targets)
         return loss, {"total_loss": loss.item()}
 
-
 model = Model()
 
 save_root = os.path.relpath(__file__)
@@ -66,42 +66,3 @@ config = {
     "num_epochs": num_epochs,
     "device": device
 }
-
-from tqdm import tqdm
-import torch
-
-model = model.to(device)
-
-pbar = tqdm(train_loader)
-running = 0
-running_correct = 0
-total = 0
-for i, (inputs, targets) in enumerate(pbar):
-    inputs, targets = inputs.to(device), targets.to(device)
-    optimizer.zero_grad()
-    preds = model(inputs)
-    loss, _ = loss_fn(preds, targets)
-    loss.backward()
-    optimizer.step()
-    running += loss.item()
-    avg = running / (i + 1)
-    running_correct += (torch.argmax(preds, dim=-1) == targets).sum().item()
-    total += len(targets) 
-    pbar.set_postfix(loss=avg, acc=(running_correct/total))
-
-
-pbar = tqdm(val_loader)
-running = 0
-running_correct = 0
-total = 0
-model.eval()
-for i, (inputs, targets) in enumerate(pbar):
-    inputs, targets = inputs.to(device), targets.to(device)
-    with torch.no_grad():
-        preds = model(inputs)
-        loss, _ = loss_fn(preds, targets)
-        running += loss.item()
-        avg = running / (i + 1)
-        running_correct += (torch.argmax(preds, dim=-1) == targets).sum().item()
-        total += len(targets) 
-        pbar.set_postfix(loss=avg, acc=(running_correct/total))
