@@ -54,7 +54,7 @@ class TrainModule(Module):
 
         self.model = YOLOv5(in_channels, num_classes)
         self.loss_fn = YOLOLoss()
-        self.optimizer = Adam(self.model.parameters(), lr=.001)
+        self.optimizer = Adam(self.model.parameters(), lr=.0001)
         
         self.img_width, self.img_height = img_width, img_height
         self.normalized_anchors = normalized_anchors
@@ -158,7 +158,6 @@ def config_trainer():
     dataset = config_datasets(coco, anchors, scales)
 
     train_loader = DataLoader(dataset, 2)
-    val_loader = DataLoader(dataset, 2)
 
     train_module = TrainModule(
         in_channels, 
@@ -176,7 +175,6 @@ def config_trainer():
         "train_module": train_module,
         "device": device,
         "train_loader": train_loader,
-        "val_loader": val_loader,
         "num_epochs": num_epochs,
         "unpacker": yolo_unpacker
     }

@@ -89,10 +89,10 @@ class YOLOLoss(nn.Module):
         total_loss += self.lambda_class * class_loss 
         
         history = {}
-        history["box_loss"] = box_loss.item()
-        history["object_loss"] = object_loss.item()
-        history["no_object_loss"] = no_object_loss.item()
-        history["class_loss"] = class_loss.item()
+        history["box_loss"] = box_loss.item() * self.lambda_box
+        history["object_loss"] = object_loss.item() * self.lambda_obj
+        history["no_object_loss"] = no_object_loss.item() * self.lambda_noobj
+        history["class_loss"] = class_loss.item() * self.lambda_class
         history["total_loss"] = total_loss.item()
 
         return total_loss, history

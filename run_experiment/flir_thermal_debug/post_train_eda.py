@@ -1,6 +1,8 @@
 import os
 import torch
 import torchvision.transforms as transforms
+import pandas as pd
+import matplotlib.pyplot as plt
 
 from torch.utils.data import DataLoader
 from PIL import Image
@@ -38,14 +40,14 @@ dataset = config_datasets(coco, anchors, scales)
 yolov5 = YOLOv5(in_channels, num_classes)
 
 sd = torch.load(
-    os.path.join(exp_root, "state_dicts", "val_ep_22.pth"),
+    os.path.join(exp_root, "state_dicts", "train_ep_25.pth"),
     map_location="cpu"
 )
 
 yolov5.load_state_dict(sd)
 
 
-img, target = dataset[3]
+img, target = dataset[8]
 img = img.unsqueeze(0)
 
 prediction = yolov5(img)
@@ -59,3 +61,8 @@ actual = decode_yolo_output(
     tuple(target), img_width, img_height, .97, anchors, scales, False
 )
 view_boxes(pil_img, actual["bboxes"])
+
+loss_df = pd.read_csv(os.path.join(exp_root, "loss_logs", "train_log.csv"))
+
+loss_df.plot()
+plt.show()

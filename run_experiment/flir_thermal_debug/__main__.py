@@ -18,6 +18,5 @@ if __name__ == "__main__":
         train_loader=config["train_loader"],
         num_epochs=config["num_epochs"],
         device=config["device"],
-        val_loader=config["val_loader"],
         unpacker=config["unpacker"]
     )
