@@ -25,6 +25,23 @@ def config_logger():
     return logger
 
 
+def config_coco():
+    path = os.path.expanduser("~/Datasets/flir/images_thermal_train/coco.json")
+    with open(path, "r") as oj:
+        coco = json.load(oj)
+
+    instructions = {}
+    for cat in coco["categories"]:
+        name = cat["name"]
+        if name not in ["truck", "motor", "car"]:
+            instructions[name] = "ignore"
+
+    tcoco = coco_transformer(
+        coco, instructions, (15, 640), (10, 512), (10, 630), (10, 502)
+    )
+    return tcoco
+
+
 class TrainModule(Module):
     def __init__(self, 
                  in_channels: int, 
@@ -102,43 +119,17 @@ class TrainModule(Module):
             self.logger.log_batch(batch_history)
 
 
-def config_train_module(coco):
+def config_some_hyperparams(coco):
     in_channels = 1
     num_classes = 8
     img_width = 640
     img_height = 512
     anchors = make_yolo_anchors(coco, img_width, img_height, 9)
     scales = [32, 16, 8]
-
-    train_module = TrainModule(
-        in_channels, 
-        num_classes, 
-        img_width, 
-        img_height, 
-        anchors, 
-        scales
-    )
-    return train_module
+    return in_channels, num_classes, img_width, img_height, anchors, scales
 
 
-def config_coco():
-    path = os.path.expanduser("~/Datasets/flir/images_thermal_train/coco.json")
-    with open(path, "r") as oj:
-        coco = json.load(oj)
-
-    instructions = {}
-    for cat in coco["categories"]:
-        name = cat["name"]
-        if name not in ["truck", "motor", "car"]:
-            instructions[name] = "ignore"
-
-    tcoco = coco_transformer(
-        coco, instructions, (15, 640), (10, 512), (10, 630), (10, 502)
-    )
-    return tcoco
-
-
-def config_loaders(coco, anchors, scales):
+def config_datasets(coco, anchors, scales):
     return_shape = (
         (3, 16, 20, 6),
         (3, 32, 40, 6),
@@ -148,21 +139,36 @@ def config_loaders(coco, anchors, scales):
     img_root = os.path.expanduser("~/Datasets/flir/images_thermal_train/")
     dataset = YoloDataset(coco, img_root, return_shape, anchors, scales)
     dataset.data = {idx: dataset.data[idx] for idx in range(10)}
-    
-    train_dataloader = DataLoader(dataset, 2)
-    val_dataloader = DataLoader(dataset, 2)
 
-    return train_dataloader, val_dataloader
+    return dataset
 
 
 def config_trainer():
     coco = config_coco()
-    train_module = config_train_module(coco)
-    train_loader, val_loader = config_loaders(
-            coco, 
-            train_module.normalized_anchors,
-            train_module.scales
+
+    (
+        in_channels, 
+        num_classes, 
+        img_width, 
+        img_height, 
+        anchors, 
+        scales
+    ) = config_some_hyperparams(coco)
+
+    dataset = config_datasets(coco, anchors, scales)
+
+    train_loader = DataLoader(dataset, 2)
+    val_loader = DataLoader(dataset, 2)
+
+    train_module = TrainModule(
+        in_channels, 
+        num_classes, 
+        img_width, 
+        img_height, 
+        anchors,
+        scales
     )
+
     device = "cuda:0"
     num_epochs = 25
 

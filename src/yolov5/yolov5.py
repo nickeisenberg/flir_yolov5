@@ -31,7 +31,6 @@ class YOLOv5(nn.Module):
         ])
         self.neck_skips = []
         
-        self.predictions = []
         self.head = nn.ModuleList([
             nn.Conv2d(256, (5 + self.num_classes) * 3, 1, 1, 0),
             Conv(256, 256, 3, 2, 1),
@@ -43,6 +42,7 @@ class YOLOv5(nn.Module):
         ])
 
     def forward(self, x: torch.Tensor):
+        predictions = []
         for layer in self.bb:
             x = layer(x)
 
@@ -59,7 +59,7 @@ class YOLOv5(nn.Module):
         for layer in self.head:
             if isinstance(layer, nn.Conv2d):
                 pred = layer(x)
-                self.predictions.insert(
+                predictions.insert(
                     0,
                     pred.view(
                         pred.shape[0], 
@@ -75,7 +75,7 @@ class YOLOv5(nn.Module):
             if isinstance(layer, Conv):
                 x = torch.concat((x, self.neck_skips.pop()), 1)
 
-        return tuple(self.predictions)
+        return tuple(predictions)
 
 
 class Conv(nn.Module):
