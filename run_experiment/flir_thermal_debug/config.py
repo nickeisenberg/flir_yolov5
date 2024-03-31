@@ -1,11 +1,13 @@
 import os
 import json
+from typing import cast
 
 from torch.utils.data import DataLoader
 from torch.nn import Module
-from torch import no_grad, Tensor, tensor
+from torch import float32, float64, no_grad, Tensor, tensor, vstack
 from torch.optim import Adam
 
+from src.trainer.logger import CSVLogger
 from src.yolo_utils.dataset import YoloDataset, yolo_unpacker
 from src.yolo_utils.utils import make_yolo_anchors
 from src.yolo_utils.coco_transformer import coco_transformer
@@ -41,6 +43,16 @@ class TrainModule(Module):
         self.normalized_anchors = normalized_anchors
         self.scales = scales 
         
+        self.scaled_anchors = []
+        for scale_id, scale in enumerate(self.scales):
+            scaled_anchors = self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)]
+            scaled_anchors *= tensor(
+                [self.img_width / scale ,self.img_height / scale]
+            )
+            self.scaled_anchors.append(scaled_anchors)
+
+        self.scaled_anchors = vstack(self.scaled_anchors).to(0).to(float32)
+
         self.logger = config_logger()
 
 
@@ -52,21 +64,20 @@ class TrainModule(Module):
         self.model.train()
 
         inputs, targets = args
+
         assert type(inputs) == Tensor
-        assert type(targets) == tuple[Tensor, ...]
+        targets = cast(tuple[Tensor, ...], targets)
 
         self.optimizer.zero_grad()
 
         outputs = self.model(inputs)
         
         device = inputs.device.type
-        total_loss = tensor(0, requires_grad=True).to(device)
+
+        total_loss = tensor(0.0, requires_grad=True).to(device)
+
         for scale_id, (output, target) in enumerate(zip(outputs, targets)):
-            scale = self.scales[scale_id]
-            scaled_anchors = self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)]
-            scaled_anchors *= tensor(
-                [self.img_width / scale ,self.img_height / scale]
-            )
+            scaled_anchors = self.scaled_anchors[3 * scale_id: 3 * (scale_id + 1)]
             loss, batch_history = self.loss_fn(output, target, scaled_anchors)
             total_loss += loss
             self.logger.log_batch(batch_history)
@@ -80,8 +91,9 @@ class TrainModule(Module):
         self.model.eval()
 
         inputs, targets = args
+
         assert type(inputs) == Tensor
-        assert type(targets) == tuple[Tensor, ...]
+        targets = cast(tuple[Tensor, ...], targets)
         
         with no_grad():
             outputs = self.model(inputs)
