@@ -4,7 +4,7 @@ from typing import cast
 
 from torch.utils.data import DataLoader
 from torch.nn import Module
-from torch import float32, float64, no_grad, Tensor, tensor, vstack
+from torch import float32, no_grad, Tensor, tensor, vstack
 from torch.optim import Adam
 
 from src.trainer.logger import CSVLogger
@@ -64,6 +64,7 @@ class TrainModule(Module):
         self.model.train()
 
         inputs, targets = args
+        device = inputs.device.type
 
         assert type(inputs) == Tensor
         targets = cast(tuple[Tensor, ...], targets)
@@ -71,11 +72,8 @@ class TrainModule(Module):
         self.optimizer.zero_grad()
 
         outputs = self.model(inputs)
-        
-        device = inputs.device.type
 
         total_loss = tensor(0.0, requires_grad=True).to(device)
-
         for scale_id, (output, target) in enumerate(zip(outputs, targets)):
             scaled_anchors = self.scaled_anchors[3 * scale_id: 3 * (scale_id + 1)]
             loss, batch_history = self.loss_fn(output, target, scaled_anchors)
@@ -99,13 +97,28 @@ class TrainModule(Module):
             outputs = self.model(inputs)
         
         for scale_id, (output, target) in enumerate(zip(outputs, targets)):
-            scale = self.scales[scale_id]
-            scaled_anchors = self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)]
-            scaled_anchors *= tensor(
-                [self.img_width / scale ,self.img_height / scale]
-            )
+            scaled_anchors = self.scaled_anchors[3 * scale_id: 3 * (scale_id + 1)]
             _, batch_history = self.loss_fn(output, target, scaled_anchors)
             self.logger.log_batch(batch_history)
+
+
+def config_train_module(coco):
+    in_channels = 1
+    num_classes = 8
+    img_width = 640
+    img_height = 512
+    anchors = make_yolo_anchors(coco, img_width, img_height, 9)
+    scales = [32, 16, 8]
+
+    train_module = TrainModule(
+        in_channels, 
+        num_classes, 
+        img_width, 
+        img_height, 
+        anchors, 
+        scales
+    )
+    return train_module
 
 
 def config_coco():
@@ -123,25 +136,6 @@ def config_coco():
         coco, instructions, (15, 640), (10, 512), (10, 630), (10, 502)
     )
     return tcoco
-
-
-def config_train_module(coco):
-    in_channels = 1
-    num_classes = 16
-    img_width = 640
-    img_height = 512
-    anchors = make_yolo_anchors(coco, img_width, img_height, 9)
-    scales = [32, 16, 8]
-
-    train_module = TrainModule(
-        in_channels, 
-        num_classes, 
-        img_width, 
-        img_height, 
-        anchors, 
-        scales
-    )
-    return train_module
 
 
 def config_loaders(coco, anchors, scales):
@@ -170,7 +164,7 @@ def config_trainer():
             train_module.scales
     )
     device = "cuda:0"
-    num_epochs = 5
+    num_epochs = 25
 
     config = {
         "train_module": train_module,
