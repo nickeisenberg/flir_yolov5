@@ -81,3 +81,13 @@ class CSVLogger:
             save_to = os.path.join(self.state_dict_root, f"{which}_ep_{epoch}.pth")
             save(model.state_dict(), save_to)
             print(f"Train checkpoint saved to {save_to}")
+
+
+def config_log_roots(logger: CSVLogger):
+    if not os.path.isdir(logger.loss_log_root):
+        os.makedirs(logger.loss_log_root)
+    print(f"Loss logs will be saved to {logger.loss_log_root}")
+    if not os.path.isdir(logger.state_dict_root):
+        os.makedirs(logger.state_dict_root)
+    print(f"State dicts will be saved to {logger.state_dict_root}")
+    return None
