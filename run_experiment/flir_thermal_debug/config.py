@@ -157,7 +157,7 @@ def config_trainer():
 
     dataset = config_datasets(coco, anchors, scales)
 
-    train_loader = DataLoader(dataset, 2)
+    train_loader = DataLoader(dataset, 1)
 
     train_module = TrainModule(
         in_channels, 
@@ -169,7 +169,7 @@ def config_trainer():
     )
 
     device = "cuda:0"
-    num_epochs = 25
+    num_epochs = 100
 
     config = {
         "train_module": train_module,

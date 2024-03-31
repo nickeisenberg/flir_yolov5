@@ -112,7 +112,8 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
         scaled_ancs = normalized_anchors * torch.tensor(
             [img_width / scale, img_height / scale]
         )
-
+        scaled_ancs = scaled_ancs[3 * scale_id: 3 * (scale_id + 1)]
+    
         dims_where: list[tuple[torch.Tensor, ...]] = list(
             zip(*torch.where(t[..., 0:1] >= p_thresh)[:-1])
         )

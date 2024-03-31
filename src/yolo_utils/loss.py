@@ -22,21 +22,6 @@ class YOLOLoss(nn.Module):
                 pred: torch.Tensor, 
                 target: torch.Tensor, 
                 scaled_anchors) -> Tuple[torch.Tensor, dict]:
-        """
-        Recall that the pred and target is a tuple of 3 tensors. As of now,
-        This forward only handles each piece separately, ie, pred[0] and 
-        target[0] etc. I may generalize to just accept the whole tuple later.
-
-        pred: torch.Tensor, shape=(batch, 3, num_rows, num_cols, 1, 5 + num_classes)
-            pred[..., :] = (x, y, w, h, prob, class_probabilities)
-        target: torch.Tensor, shape=(batch, 3, num_rows, num_cols, 1, 6)
-            target[..., :] = (x, y, w, h, prob, class_ID)
-
-        (x_off, y_off, w/ s, h /s, prop, ....) ---> (x, y, w, h, prob, class)
-
-        (t1, t2, t3) tk.shape = (batch, 3, row, col, ____)
-        """
-
         obj = target[..., 0] == 1
         no_obj = target[..., 0] == 0
 
@@ -77,6 +62,7 @@ class YOLOLoss(nn.Module):
                 pred[..., 5:][obj], 
                 target[..., 5][obj].long()
             )
+
         else:
             device = pred.device.type
             box_loss = torch.tensor([0]).to(device)
@@ -85,8 +71,8 @@ class YOLOLoss(nn.Module):
 
         total_loss = self.lambda_box * box_loss
         total_loss += self.lambda_obj * object_loss
-        total_loss += self.lambda_noobj * no_object_loss
         total_loss += self.lambda_class * class_loss 
+        total_loss += self.lambda_noobj * no_object_loss
         
         history = {}
         history["box_loss"] = box_loss.item() * self.lambda_box
