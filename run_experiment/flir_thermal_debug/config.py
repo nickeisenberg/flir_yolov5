@@ -1,77 +1,172 @@
 import os
 import json
-from torch.optim import Adam
+
 from torch.utils.data import DataLoader
+from torch.nn import Module
+from torch import no_grad, Tensor, tensor
+from torch.optim import Adam
 
-from trainer_module import TrainModule
-
-from src.yolov5.yolov5 import YOLOv5
-from src.trainer.logger import CSVLogger
-from src.yolo_utils.loss import YOLOLoss
 from src.yolo_utils.dataset import YoloDataset, yolo_unpacker
 from src.yolo_utils.utils import make_yolo_anchors
 from src.yolo_utils.coco_transformer import coco_transformer
+from src.yolov5.yolov5 import YOLOv5
+from src.yolo_utils.loss import YOLOLoss
 
-path = os.path.expanduser("~/Datasets/flir/images_thermal_train/coco.json")
-with open(path, "r") as oj:
-    coco = json.load(oj)
 
-in_channels = 1
-num_classes = 16
-model = YOLOv5(in_channels, num_classes)
+def config_logger():
+    save_root = os.path.relpath(__file__)
+    save_root = save_root.split(os.path.basename(save_root))[0]
+    logger = CSVLogger(
+        os.path.join(save_root, "loss_logs"),
+        os.path.join(save_root, "state_dicts")
+    )
+    return logger
 
-device = "cuda"
-loss_fn = YOLOLoss(device)
-optimizer = Adam(model.parameters(), lr=.001)
-img_width = 640
-img_height = 512
-anchors = make_yolo_anchors(coco, img_width, img_height, 9)
-scales = [32, 16, 8]
 
-save_root = os.path.relpath(__file__)
-save_root = save_root.split(os.path.basename(save_root))[0]
-logger = CSVLogger(
-    os.path.join(save_root, "loss_logs"),
-    os.path.join(save_root, "state_dicts")
-)
+class TrainModule(Module):
+    def __init__(self, 
+                 in_channels: int, 
+                 num_classes: int, 
+                 img_width: int,
+                 img_height: int,
+                 normalized_anchors: Tensor,
+                 scales: list[int]):
+        super().__init__()
 
-module = TrainModule(
-    in_channels, num_classes, device, img_width, img_height, 
-    anchors, scales, logger
-)
+        self.model = YOLOv5(in_channels, num_classes)
+        self.loss_fn = YOLOLoss()
+        self.optimizer = Adam(self.model.parameters(), lr=.001)
+        
+        self.img_width, self.img_height = img_width, img_height
+        self.normalized_anchors = normalized_anchors
+        self.scales = scales 
+        
+        self.logger = config_logger()
 
-instructions = {}
-for cat in coco["categories"]:
-    name = cat["name"]
-    if name not in ["truck", "motor", "car"]:
-        instructions[name] = "ignore"
 
-tcoco = coco_transformer(
-    coco, instructions, (15, 640), (10, 512), (10, 630), (10, 502)
-)
+    def forward(self, x):
+        return self.model(x)
 
-return_shape = (
-    (3, 16, 20, 6),
-    (3, 32, 40, 6),
-    (3, 64, 80, 6),
-)
-img_root = os.path.expanduser("~/Datasets/flir/images_thermal_train/")
-dataset = YoloDataset(tcoco, img_root, return_shape, anchors, scales)
-dataset.data = {idx: dataset.data[idx] for idx in range(10)}
 
-train_dataloader = DataLoader(dataset, 2)
-val_dataloader = DataLoader(dataset, 2)
+    def train_batch_pass(self, *args):
+        self.model.train()
 
-num_epochs = 3
+        inputs, targets = args
+        assert type(inputs) == Tensor
+        assert type(targets) == tuple[Tensor, ...]
 
-config = {
-    "model": module,
-    "loss_fn": loss_fn,
-    "optimizer": optimizer,
-    "device": device,
-    "save_root": save_root,
-    "train_loader": train_dataloader,
-    "val_loader": val_dataloader,
-    "num_epochs": num_epochs,
-    "unpacker": yolo_unpacker
-}
+        self.optimizer.zero_grad()
+
+        outputs = self.model(inputs)
+        
+        device = inputs.device.type
+        total_loss = tensor(0, requires_grad=True).to(device)
+        for scale_id, (output, target) in enumerate(zip(outputs, targets)):
+            scale = self.scales[scale_id]
+            scaled_anchors = self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)]
+            scaled_anchors *= tensor(
+                [self.img_width / scale ,self.img_height / scale]
+            )
+            loss, batch_history = self.loss_fn(output, target, scaled_anchors)
+            total_loss += loss
+            self.logger.log_batch(batch_history)
+
+        total_loss.backward()
+
+        self.optimizer.step()
+
+
+    def val_batch_pass(self, *args):
+        self.model.eval()
+
+        inputs, targets = args
+        assert type(inputs) == Tensor
+        assert type(targets) == tuple[Tensor, ...]
+        
+        with no_grad():
+            outputs = self.model(inputs)
+        
+        for scale_id, (output, target) in enumerate(zip(outputs, targets)):
+            scale = self.scales[scale_id]
+            scaled_anchors = self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)]
+            scaled_anchors *= tensor(
+                [self.img_width / scale ,self.img_height / scale]
+            )
+            _, batch_history = self.loss_fn(output, target, scaled_anchors)
+            self.logger.log_batch(batch_history)
+
+
+def config_coco():
+    path = os.path.expanduser("~/Datasets/flir/images_thermal_train/coco.json")
+    with open(path, "r") as oj:
+        coco = json.load(oj)
+
+    instructions = {}
+    for cat in coco["categories"]:
+        name = cat["name"]
+        if name not in ["truck", "motor", "car"]:
+            instructions[name] = "ignore"
+
+    tcoco = coco_transformer(
+        coco, instructions, (15, 640), (10, 512), (10, 630), (10, 502)
+    )
+    return tcoco
+
+
+def config_train_module(coco):
+    in_channels = 1
+    num_classes = 16
+    img_width = 640
+    img_height = 512
+    anchors = make_yolo_anchors(coco, img_width, img_height, 9)
+    scales = [32, 16, 8]
+
+    train_module = TrainModule(
+        in_channels, 
+        num_classes, 
+        img_width, 
+        img_height, 
+        anchors, 
+        scales
+    )
+    return train_module
+
+
+def config_loaders(coco, anchors, scales):
+    return_shape = (
+        (3, 16, 20, 6),
+        (3, 32, 40, 6),
+        (3, 64, 80, 6),
+    )
+
+    img_root = os.path.expanduser("~/Datasets/flir/images_thermal_train/")
+    dataset = YoloDataset(coco, img_root, return_shape, anchors, scales)
+    dataset.data = {idx: dataset.data[idx] for idx in range(10)}
+    
+    train_dataloader = DataLoader(dataset, 2)
+    val_dataloader = DataLoader(dataset, 2)
+
+    return train_dataloader, val_dataloader
+
+
+def config_trainer():
+    coco = config_coco()
+    train_module = config_train_module(coco)
+    train_loader, val_loader = config_loaders(
+            coco, 
+            train_module.normalized_anchors,
+            train_module.scales
+    )
+    device = "cuda:0"
+    num_epochs = 5
+
+    config = {
+        "train_module": train_module,
+        "device": device,
+        "train_loader": train_loader,
+        "val_loader": val_loader,
+        "num_epochs": num_epochs,
+        "unpacker": yolo_unpacker
+    }
+
+    return config

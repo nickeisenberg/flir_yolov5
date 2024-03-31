@@ -6,20 +6,22 @@ from .utils import iou
 
 
 class YOLOLoss(nn.Module):
-    def __init__(self, device):
+    def __init__(self):
         super().__init__()
         self.mse = nn.MSELoss(reduction='mean') 
         self.bce = nn.BCEWithLogitsLoss(reduction='mean') 
         self.cross_entropy = nn.CrossEntropyLoss() 
         self.sigmoid = nn.Sigmoid() 
-        self.device = device
         self.lambda_class = 1.
         self.lambda_noobj = 10.
         self.lambda_obj = 1.
         self.lambda_box = 10.
 
 
-    def forward(self, pred, target, scaled_anchors) -> Tuple[torch.Tensor, dict]:
+    def forward(self, 
+                pred: torch.Tensor, 
+                target: torch.Tensor, 
+                scaled_anchors) -> Tuple[torch.Tensor, dict]:
         """
         Recall that the pred and target is a tuple of 3 tensors. As of now,
         This forward only handles each piece separately, ie, pred[0] and 
@@ -76,9 +78,10 @@ class YOLOLoss(nn.Module):
                 target[..., 5][obj].long()
             )
         else:
-            box_loss = torch.tensor([0]).to(self.device)
-            object_loss = torch.tensor([0]).to(self.device)
-            class_loss = torch.tensor([0]).to(self.device)
+            device = pred.device.type
+            box_loss = torch.tensor([0]).to(device)
+            object_loss = torch.tensor([0]).to(device)
+            class_loss = torch.tensor([0]).to(device)
 
         total_loss = self.lambda_box * box_loss
         total_loss += self.lambda_obj * object_loss
