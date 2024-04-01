@@ -121,7 +121,7 @@ class TrainModule(Module):
 
 def config_some_hyperparams(coco):
     in_channels = 1
-    num_classes = 8
+    num_classes = 4 + 1
     img_width = 640
     img_height = 512
     anchors = make_yolo_anchors(coco, img_width, img_height, 9)

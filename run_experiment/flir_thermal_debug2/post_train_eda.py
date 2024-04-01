@@ -41,14 +41,14 @@ dataset = config_datasets(coco, anchors, scales)
 yolov5 = YOLOv5(in_channels, num_classes)
 
 sd = torch.load(
-    os.path.join(exp_root, "state_dicts", "train_ep_100.pth"),
+    os.path.join(exp_root, "state_dicts", "train_ep_60.pth"),
     map_location="cpu"
 )
 
 yolov5.load_state_dict(sd)
 
 
-img, target = dataset[1]
+img, target = dataset[100]
 img = img.unsqueeze(0)
 prediction = yolov5(img)
 decoded_prediction = decode_yolo_output(

@@ -117,7 +117,7 @@ class TrainModule(Module):
 
 def config_some_hyperparams(coco):
     in_channels = 1
-    num_classes = 12 + 1
+    num_classes = 79 + 1
     img_width = 640
     img_height = 512
     anchors = make_yolo_anchors(coco, img_width, img_height, 9)
@@ -134,7 +134,7 @@ def config_datasets(coco, anchors, scales):
 
     img_root = os.path.expanduser("~/Datasets/flir/images_thermal_train/")
     dataset = YoloDataset(coco, img_root, return_shape, anchors, scales)
-    dataset.data = {idx: dataset.data[idx] for idx in range(10)}
+    dataset.data = {idx: dataset.data[idx] for idx in range(400)}
 
     return dataset
 
@@ -153,7 +153,7 @@ def config_trainer():
 
     dataset = config_datasets(coco, anchors, scales)
 
-    train_loader = DataLoader(dataset, 1)
+    train_loader = DataLoader(dataset, 4, shuffle=True)
 
     train_module = TrainModule(
         in_channels, 
@@ -190,7 +190,7 @@ def config_trainer():
 #         if id not in ids:
 #             ids.append(id)
 # 
-# ids
+# max(ids)
 
 
 
