@@ -31,10 +31,6 @@ def config_coco():
         coco = json.load(oj)
 
     instructions = {}
-    for cat in coco["categories"]:
-        name = cat["name"]
-        if name not in ["truck", "motor", "car"]:
-            instructions[name] = "ignore"
 
     tcoco = coco_transformer(
         coco, instructions, (15, 640), (10, 512), (10, 630), (10, 502)
@@ -121,7 +117,7 @@ class TrainModule(Module):
 
 def config_some_hyperparams(coco):
     in_channels = 1
-    num_classes = 8
+    num_classes = 12 + 1
     img_width = 640
     img_height = 512
     anchors = make_yolo_anchors(coco, img_width, img_height, 9)
@@ -182,7 +178,6 @@ def config_trainer():
     return config
 
 
-
 # coco = config_coco()
 # 
 # _, num, _, _, ancs, scales = config_some_hyperparams(coco)
@@ -196,3 +191,12 @@ def config_trainer():
 #             ids.append(id)
 # 
 # ids
+
+
+
+
+
+
+
+
+
