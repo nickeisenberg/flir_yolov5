@@ -11,7 +11,8 @@ from src.yolov5.train_module import TrainModule
 
 
 def config_coco():
-    path = os.path.expanduser("~/Datasets/flir/images_thermal_train/coco.json")
+    flir_root = os.path.expanduser("~/Datasets/flir")
+    path = os.path.join(flir_root, "images_thermal_train", "coco.json")
     with open(path, "r") as oj:
         coco = json.load(oj)
 
