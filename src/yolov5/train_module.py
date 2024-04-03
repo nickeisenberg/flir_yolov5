@@ -28,7 +28,7 @@ class TrainModule(Module):
         elif isinstance(device, int):
             self.device = device
             self.model = yolo.to(device)
-        elif isinstance(device, list) and len(device) > 1:
+        elif isinstance(device, list):
             self.device = device[0]
             self.device_ids = device
             self.model = DataParallel(yolo, self.device_ids)

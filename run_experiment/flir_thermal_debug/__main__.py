@@ -1,4 +1,6 @@
 from sys import path
+
+from torch.nn import DataParallel
 path.append(__file__.split("run_experiment")[0])
 
 from config import config_trainer

@@ -91,7 +91,7 @@ def config_trainer():
 
     train_loader = DataLoader(dataset, 4)
 
-    device = "cuda:0"
+    device = [0]
 
     train_module = TrainModule(
         yolo=YOLOv5(in_channels, num_classes),
