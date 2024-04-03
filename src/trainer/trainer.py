@@ -27,20 +27,21 @@ class Trainer:
             unpacker = unpacker
     
         self.train_module.model = self.train_module.model.to(device)
+        epochs_run = self.train_module.epochs_run
 
-        for epoch in range(1, num_epochs + 1):
+        for epoch in range(epochs_run + 1, num_epochs + 1):
             self.epoch_pass("train", train_loader, device, unpacker)
             self.train_module.logger.log_epoch("train")
-            self.train_module.logger.save_checkpoint(
-                "train", epoch, self.train_module.model
-            )
+             
+            if self.train_module.logger.save_checkpoint_flag("train"):
+                self.train_module.save_checkpoint("train", epoch)
 
             if val_loader is not None:
                 self.epoch_pass("val", val_loader, device, unpacker)
                 self.train_module.logger.log_epoch("val")
-                self.train_module.logger.save_checkpoint(
-                    "val", epoch, self.train_module.model
-                )
+
+                if self.train_module.logger.save_checkpoint_flag("val"):
+                    self.train_module.save_checkpoint("val", epoch)
 
 
     def epoch_pass(self, 

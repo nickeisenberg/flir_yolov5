@@ -41,11 +41,11 @@ dataset = config_datasets(coco, anchors, scales)
 yolov5 = YOLOv5(in_channels, num_classes)
 
 sd = torch.load(
-    os.path.join(exp_root, "state_dicts", "train_ep_100.pth"),
+    os.path.join(exp_root, "state_dicts", "train_ckp.pth"),
     map_location="cpu"
 )
 
-yolov5.load_state_dict(sd)
+yolov5.load_state_dict(sd["MODEL_STATE"])
 
 
 img, target = dataset[3]

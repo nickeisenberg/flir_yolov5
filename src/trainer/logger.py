@@ -8,11 +8,9 @@ from collections import defaultdict
 class CSVLogger:
     def __init__(self,
                  loss_log_root: str, 
-                 state_dict_root: str,
                  best_key='total_loss'):
         
         self.loss_log_root = loss_log_root
-        self.state_dict_root = state_dict_root
 
         self.best_key = best_key
 
@@ -60,8 +58,8 @@ class CSVLogger:
         self._epoch_history = defaultdict(list)
         self._avg_epoch_history = defaultdict(float)
 
-    
-    def save_checkpoint(self, which, epoch, model: Module):
+
+    def save_checkpoint_flag(self, which):
         save_ckp = False
 
         if which == "train":
@@ -76,10 +74,7 @@ class CSVLogger:
                 save_ckp = True
                 self.best_val_loss = loss
         
-        if save_ckp:
-            save_to = os.path.join(self.state_dict_root, f"{which}_ep_{epoch}.pth")
-            save(model.state_dict(), save_to)
-            print(f"Train checkpoint saved to {save_to}")
+        return save_ckp
 
 
 def config_log_roots(logger: CSVLogger):
