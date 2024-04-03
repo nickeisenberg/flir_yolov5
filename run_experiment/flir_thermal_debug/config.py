@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from src.yolo_utils.dataset import YoloDataset, yolo_unpacker
 from src.yolo_utils.utils import make_yolo_anchors
 from src.yolo_utils.coco_transformer import coco_transformer
+from src.yolov5.yolov5 import YOLOv5
 from src.yolov5.train_module import TrainModule
 
 
@@ -89,18 +90,19 @@ def config_trainer():
 
     train_loader = DataLoader(dataset, 1)
 
+    device = "cuda:0"
+
     train_module = TrainModule(
-        in_channels, 
-        num_classes, 
-        img_width, 
-        img_height, 
-        anchors, 
-        scales,
-        loss_log_root,
-        state_dict_root
+        yolo=YOLOv5(in_channels, num_classes),
+        device=device,
+        img_width=img_width, 
+        img_height=img_height, 
+        normalized_anchors=anchors, 
+        scales=scales,
+        loss_log_root=loss_log_root,
+        state_dict_root=state_dict_root
     )
 
-    device = "cuda:0"
     num_epochs = 100
 
     config = {

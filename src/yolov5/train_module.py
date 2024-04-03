@@ -3,6 +3,7 @@ from typing import cast
 from torch.nn import Module
 from torch import float32, no_grad, Tensor, tensor, vstack, save, load
 from torch.optim import Adam
+from torch.nn import DataParallel
 
 from src.trainer.logger import CSVLogger
 from src.yolov5.yolov5 import YOLOv5
@@ -10,9 +11,9 @@ from src.yolo_utils.loss import YOLOLoss
 
 
 class TrainModule(Module):
-    def __init__(self, 
-                 in_channels: int, 
-                 num_classes: int, 
+    def __init__(self,
+                 yolo: YOLOv5,
+                 device: list[int] | int | str,
                  img_width: int,
                  img_height: int,
                  normalized_anchors: Tensor,
@@ -21,7 +22,19 @@ class TrainModule(Module):
                  state_dict_root: str):
         super().__init__()
 
-        self.model = YOLOv5(in_channels, num_classes)
+        if isinstance(device, str):
+            self.device = device
+            self.model = yolo.to(device)
+        elif isinstance(device, int):
+            self.device = device
+            self.model = yolo.to(device)
+        elif isinstance(device, list) and len(device) > 1:
+            self.device = device[0]
+            self.device_ids = device
+            self.model = DataParallel(yolo, self.device_ids)
+        else:
+            raise Exception("wrong model initialization")
+
         self.loss_fn = YOLOLoss()
         self.optimizer = Adam(self.model.parameters(), lr=.0001)
         
@@ -99,9 +112,16 @@ class TrainModule(Module):
             save_to = os.path.join(
                 self.state_dict_root, f"{which}_ckp.pth"
             )
-        checkpoint["MODEL_STATE"] = self.model.state_dict()
-        checkpoint["OPTIMIZER_STATE"] = self.optimizer.state_dict()
-        checkpoint["EPOCHS_RUN"] = epoch
+
+        if isinstance(self.model, DataParallel):
+            checkpoint["MODEL_STATE"] = self.model.module.state_dict()
+            checkpoint["OPTIMIZER_STATE"] = self.optimizer.state_dict()
+            checkpoint["EPOCHS_RUN"] = epoch
+        else:
+            checkpoint["MODEL_STATE"] = self.model.state_dict()
+            checkpoint["OPTIMIZER_STATE"] = self.optimizer.state_dict()
+            checkpoint["EPOCHS_RUN"] = epoch
+
         save(checkpoint, save_to)
         print(f"EPOCH {epoch} checkpoint saved at {save_to}")
 
@@ -112,6 +132,17 @@ class TrainModule(Module):
                 self.state_dict_root, f"{which}_ckp.pth"
             )
         checkpoint = load(load_from)
-        self.model.load_state_dict(checkpoint["MODEL_STATE"])
-        self.optimizer.load_state_dict(checkpoint["OPTIMIZER_STATE"])
-        self.epochs_run = checkpoint["EPOCHS_RUN"]
+
+        for state in checkpoint["OPTIMIZER_STATE"]["state"].values():
+            for k, v in state.items():
+                if isinstance(v, Tensor):
+                    state[k] = v.to(self.device)
+
+        if isinstance(self.model, DataParallel):
+            self.model.module.load_state_dict(checkpoint["MODEL_STATE"])
+            self.optimizer.load_state_dict(checkpoint["OPTIMIZER_STATE"])
+            self.epochs_run = checkpoint["EPOCHS_RUN"]
+        else:
+            self.model.load_state_dict(checkpoint["MODEL_STATE"])
+            self.optimizer.load_state_dict(checkpoint["OPTIMIZER_STATE"])
+            self.epochs_run = checkpoint["EPOCHS_RUN"]
