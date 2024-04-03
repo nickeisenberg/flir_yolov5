@@ -1,18 +1,12 @@
 import os
 import json
-from typing import cast
 
 from torch.utils.data import DataLoader
-from torch.nn import Module
-from torch import float32, no_grad, Tensor, tensor, vstack, save, load
-from torch.optim import Adam
 
-from src.trainer.logger import CSVLogger
 from src.yolo_utils.dataset import YoloDataset, yolo_unpacker
 from src.yolo_utils.utils import make_yolo_anchors
 from src.yolo_utils.coco_transformer import coco_transformer
-from src.yolov5.yolov5 import YOLOv5
-from src.yolo_utils.loss import YOLOLoss
+from src.yolov5.train_module import TrainModule
 
 
 def config_coco():
@@ -44,120 +38,23 @@ def config_save_roots():
     return loss_log_root, state_dict_root
 
 
-class TrainModule(Module):
-    def __init__(self, 
-                 in_channels: int, 
-                 num_classes: int, 
-                 img_width: int,
-                 img_height: int,
-                 normalized_anchors: Tensor,
-                 scales: list[int]):
-        super().__init__()
-
-        self.model = YOLOv5(in_channels, num_classes)
-        self.loss_fn = YOLOLoss()
-        self.optimizer = Adam(self.model.parameters(), lr=.0001)
-        
-        self.img_width, self.img_height = img_width, img_height
-        self.normalized_anchors = normalized_anchors
-        self.scales = scales 
-        
-        self.scaled_anchors = []
-        for scale_id, scale in enumerate(self.scales):
-            scaled_anchors = self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)]
-            scaled_anchors *= tensor(
-                [self.img_width / scale ,self.img_height / scale]
-            )
-            self.scaled_anchors.append(scaled_anchors)
-
-        self.scaled_anchors = vstack(self.scaled_anchors).to(0).to(float32)
-
-        self.loss_log_root, self.state_dict_root = config_save_roots() 
-        self.logger = CSVLogger(self.loss_log_root)
-
-        self.epochs_run = 0
-        if os.path.isfile(os.path.join(self.state_dict_root, "train_ckp.pth")):
-            self.load_checkpoint()
-
-
-    def forward(self, x):
-        return self.model(x)
-
-
-    def train_batch_pass(self, *args):
-        self.model.train()
-
-        inputs, targets = args
-        device = inputs.device.type
-
-        assert type(inputs) == Tensor
-        targets = cast(tuple[Tensor, ...], targets)
-
-        self.optimizer.zero_grad()
-
-        outputs = self.model(inputs)
-
-        total_loss = tensor(0.0, requires_grad=True).to(device)
-        for scale_id, (output, target) in enumerate(zip(outputs, targets)):
-            scaled_anchors = self.scaled_anchors[3 * scale_id: 3 * (scale_id + 1)]
-            loss, batch_history = self.loss_fn(output, target, scaled_anchors)
-            total_loss += loss
-            self.logger.log_batch(batch_history)
-
-        total_loss.backward()
-
-        self.optimizer.step()
-
-
-    def val_batch_pass(self, *args):
-        self.model.eval()
-
-        inputs, targets = args
-
-        assert type(inputs) == Tensor
-        targets = cast(tuple[Tensor, ...], targets)
-        
-        with no_grad():
-            outputs = self.model(inputs)
-        
-        for scale_id, (output, target) in enumerate(zip(outputs, targets)):
-            scaled_anchors = self.scaled_anchors[3 * scale_id: 3 * (scale_id + 1)]
-            _, batch_history = self.loss_fn(output, target, scaled_anchors)
-            self.logger.log_batch(batch_history)
-
-
-    def save_checkpoint(self, which, epoch, save_to: str | None = None):
-        checkpoint = {}
-        if save_to is None:
-            save_to = os.path.join(
-                self.state_dict_root, f"{which}_ckp.pth"
-            )
-        checkpoint["MODEL_STATE"] = self.model.state_dict()
-        checkpoint["OPTIMIZER_STATE"] = self.optimizer.state_dict()
-        checkpoint["EPOCHS_RUN"] = epoch
-        save(checkpoint, save_to)
-        print(f"EPOCH {epoch} checkpoint saved at {save_to}")
-
-
-    def load_checkpoint(self, which="train", load_from: str | None = None):
-        if load_from is None:
-            load_from = os.path.join(
-                self.state_dict_root, f"{which}_ckp.pth"
-            )
-        checkpoint = load(load_from)
-        self.model.load_state_dict(checkpoint["MODEL_STATE"])
-        self.optimizer.load_state_dict(checkpoint["OPTIMIZER_STATE"])
-        self.epochs_run = checkpoint["EPOCHS_RUN"]
-
-
-def config_some_hyperparams(coco):
+def config_train_module_inputs(coco):
+    save_root = os.path.relpath(__file__)
+    save_root = save_root.split(os.path.basename(save_root))[0]
+    loss_log_root = os.path.join(save_root, "loss_logs")
+    state_dict_root = os.path.join(save_root, "state_dicts")
+    if not os.path.isdir(loss_log_root):
+        os.makedirs(loss_log_root)
+    if not os.path.isdir(state_dict_root):
+        os.makedirs(state_dict_root)
     in_channels = 1
     num_classes = 4 + 1
     img_width = 640
     img_height = 512
     anchors = make_yolo_anchors(coco, img_width, img_height, 9)
     scales = [32, 16, 8]
-    return in_channels, num_classes, img_width, img_height, anchors, scales
+    return [in_channels, num_classes, img_width, img_height, anchors, scales,
+            loss_log_root, state_dict_root]
 
 
 def config_datasets(coco, anchors, scales):
@@ -183,8 +80,10 @@ def config_trainer():
         img_width, 
         img_height, 
         anchors, 
-        scales
-    ) = config_some_hyperparams(coco)
+        scales,
+        loss_log_root,
+        state_dict_root
+    ) = config_train_module_inputs(coco)
 
     dataset = config_datasets(coco, anchors, scales)
 
@@ -195,8 +94,10 @@ def config_trainer():
         num_classes, 
         img_width, 
         img_height, 
-        anchors,
-        scales
+        anchors, 
+        scales,
+        loss_log_root,
+        state_dict_root
     )
 
     device = "cuda:0"

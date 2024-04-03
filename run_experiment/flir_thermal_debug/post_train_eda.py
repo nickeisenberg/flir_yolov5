@@ -18,11 +18,7 @@ from src.yolov5.yolov5 import YOLOv5
 from run_experiment.flir_thermal_debug.config import (
     config_coco,
     config_datasets,
-    config_some_hyperparams
-)
-
-exp_root = os.path.expanduser(
-    "~/GitRepos/flir_yolov5/run_experiment/flir_thermal_debug"
+    config_train_module_inputs
 )
 
 coco = config_coco()
@@ -33,20 +29,21 @@ coco = config_coco()
     img_width, 
     img_height, 
     anchors, 
-    scales
-) = config_some_hyperparams(coco)
+    scales,
+    loss_log_root,
+    state_dict_root
+) = config_train_module_inputs(coco)
 
 dataset = config_datasets(coco, anchors, scales)
 
 yolov5 = YOLOv5(in_channels, num_classes)
 
 sd = torch.load(
-    os.path.join(exp_root, "state_dicts", "train_ckp.pth"),
+    os.path.join(state_dict_root, "train_ckp.pth"),
     map_location="cpu"
 )
 
 yolov5.load_state_dict(sd["MODEL_STATE"])
-
 
 img, target = dataset[3]
 img = img.unsqueeze(0)
@@ -62,10 +59,9 @@ actual = decode_yolo_output(
 )
 view_boxes(pil_img, actual["bboxes"])
 
-loss_df = pd.read_csv(os.path.join(exp_root, "loss_logs", "train_log.csv"))
+loss_df = pd.read_csv(os.path.join(loss_log_root, "train_log.csv"))
 loss_df["batch"] = loss_df.index // 30
 loss_df = loss_df.groupby("batch").mean()
 loss_df = loss_df.drop("batch", axis=1)
 loss_df.plot()
 plt.show()
-
