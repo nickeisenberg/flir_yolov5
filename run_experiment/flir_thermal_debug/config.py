@@ -200,7 +200,7 @@ def config_trainer():
     )
 
     device = "cuda:0"
-    num_epochs = 60
+    num_epochs = 100
 
     config = {
         "train_module": train_module,
