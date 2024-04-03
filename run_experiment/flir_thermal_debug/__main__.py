@@ -6,11 +6,12 @@ from src.trainer.trainer import Trainer
 
 config = config_trainer()
 
-trainer = Trainer(
-    train_module=config["train_module"],
-)
-
 if __name__ == "__main__":
+    trainer = Trainer(
+        train_module=config["train_module"],
+    )
+
+
     trainer.fit(
         train_loader=config["train_loader"],
         num_epochs=config["num_epochs"],

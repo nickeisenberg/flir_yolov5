@@ -1,3 +1,4 @@
+from torch import Tensor
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from typing import Callable
@@ -27,6 +28,12 @@ class Trainer:
             unpacker = unpacker
     
         self.train_module.model = self.train_module.model.to(device)
+
+        for state in self.train_module.optimizer.state.values():
+            for k, v in state.items():
+                if isinstance(v, Tensor):
+                    state[k] = v.to(device)
+
         epochs_run = self.train_module.epochs_run
 
         for epoch in range(epochs_run + 1, num_epochs + 1):

@@ -145,7 +145,7 @@ class TrainModule(Module):
                 self.state_dict_root, f"{which}_ckp.pth"
             )
         checkpoint = load(load_from)
-        self.model.load_state_dict(checkpoint["MODEL_STATE"],)
+        self.model.load_state_dict(checkpoint["MODEL_STATE"])
         self.optimizer.load_state_dict(checkpoint["OPTIMIZER_STATE"])
         self.epochs_run = checkpoint["EPOCHS_RUN"]
 
@@ -211,7 +211,6 @@ def config_trainer():
     }
 
     return config
-
 
 
 # coco = config_coco()
