@@ -32,6 +32,7 @@ class TrainModule(Module):
             self.device = device[0]
             self.device_ids = device
             self.model = DataParallel(yolo, self.device_ids)
+            self.model.to(self.device)
         else:
             raise Exception("wrong model initialization")
 
@@ -68,7 +69,6 @@ class TrainModule(Module):
         self.model.train()
 
         inputs, targets = args
-        device = inputs.device.type
 
         assert type(inputs) == Tensor
         targets = cast(tuple[Tensor, ...], targets)
@@ -77,7 +77,7 @@ class TrainModule(Module):
 
         outputs = self.model(inputs)
 
-        total_loss = tensor(0.0, requires_grad=True).to(device)
+        total_loss = tensor(0.0, requires_grad=True).to(self.device)
         for scale_id, (output, target) in enumerate(zip(outputs, targets)):
             scaled_anchors = self.scaled_anchors[3 * scale_id: 3 * (scale_id + 1)]
             loss, batch_history = self.loss_fn(output, target, scaled_anchors)

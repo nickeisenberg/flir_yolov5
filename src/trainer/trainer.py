@@ -17,7 +17,7 @@ class Trainer:
     def fit(self, 
             train_loader: DataLoader,
             num_epochs: int,
-            device: str,
+            device: str | int,
             unpacker: Callable | None = None,
             val_loader: DataLoader | None = None):
 
@@ -45,7 +45,7 @@ class Trainer:
     def epoch_pass(self, 
                    which: str, 
                    loader: DataLoader, 
-                   device: str, 
+                   device: str | int, 
                    unpacker: Callable):
 
         pbar = tqdm(loader)
