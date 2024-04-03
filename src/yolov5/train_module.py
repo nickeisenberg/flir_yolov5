@@ -43,15 +43,15 @@ class TrainModule(Module):
         self.normalized_anchors = normalized_anchors
         self.scales = scales 
         
-        self.scaled_anchors = []
+        _scaled_anchors = []
         for scale_id, scale in enumerate(self.scales):
             scaled_anchors = self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)]
             scaled_anchors *= tensor(
                 [self.img_width / scale ,self.img_height / scale]
             )
-            self.scaled_anchors.append(scaled_anchors)
+            _scaled_anchors.append(scaled_anchors)
 
-        self.scaled_anchors = vstack(self.scaled_anchors).to(0).to(float32)
+        self.scaled_anchors = vstack(_scaled_anchors).to(float32)
 
         self.loss_log_root, self.state_dict_root = loss_log_root, state_dict_root
         self.logger = CSVLogger(self.loss_log_root)
@@ -70,6 +70,10 @@ class TrainModule(Module):
 
         inputs, targets = args
 
+        device = inputs.device.type
+
+        self.scaled_anchors = self.scaled_anchors.to(device)
+
         assert type(inputs) == Tensor
         targets = cast(tuple[Tensor, ...], targets)
 
@@ -77,7 +81,7 @@ class TrainModule(Module):
 
         outputs = self.model(inputs)
 
-        total_loss = tensor(0.0, requires_grad=True).to(self.device)
+        total_loss = tensor(0.0, requires_grad=True).to(device)
         for scale_id, (output, target) in enumerate(zip(outputs, targets)):
             scaled_anchors = self.scaled_anchors[3 * scale_id: 3 * (scale_id + 1)]
             loss, batch_history = self.loss_fn(output, target, scaled_anchors)
@@ -93,9 +97,13 @@ class TrainModule(Module):
         self.model.eval()
 
         inputs, targets = args
+        device = inputs.device.type
 
         assert type(inputs) == Tensor
         targets = cast(tuple[Tensor, ...], targets)
+        
+
+        self.scaled_anchors = self.scaled_anchors.to(device)
         
         with no_grad():
             outputs = self.model(inputs)

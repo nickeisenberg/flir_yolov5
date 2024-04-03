@@ -50,7 +50,7 @@ def config_train_module_inputs(coco):
     if not os.path.isdir(state_dict_root):
         os.makedirs(state_dict_root)
     in_channels = 1
-    num_classes = 4 + 1
+    num_classes = 8 + 1
     img_width = 640
     img_height = 512
     anchors = make_yolo_anchors(coco, img_width, img_height, 9)
@@ -68,7 +68,7 @@ def config_datasets(coco, anchors, scales):
 
     img_root = os.path.expanduser("~/Datasets/flir/images_thermal_train/")
     dataset = YoloDataset(coco, img_root, return_shape, anchors, scales)
-    dataset.data = {idx: dataset.data[idx] for idx in range(10)}
+    dataset.data = {idx: dataset.data[idx] for idx in range(100)}
 
     return dataset
 
@@ -89,7 +89,7 @@ def config_trainer():
 
     dataset = config_datasets(coco, anchors, scales)
 
-    train_loader = DataLoader(dataset, 1)
+    train_loader = DataLoader(dataset, 4)
 
     device = "cuda:0"
 
@@ -119,7 +119,7 @@ def config_trainer():
 
 # coco = config_coco()
 # 
-# _, num, _, _, ancs, scales = config_some_hyperparams(coco)
+# _, num, _, _, ancs, scales, _, _ = config_train_module_inputs(coco)
 # 
 # dataset = config_datasets(coco, ancs, scales)
 # 
