@@ -16,7 +16,6 @@ def yolo_unpacker(data, device):
     return img_ten, yolo_target_tuple
 
 
-
 def make_data_from_coco(coco: dict, file_name_root: str) -> dict:
     """
     {
