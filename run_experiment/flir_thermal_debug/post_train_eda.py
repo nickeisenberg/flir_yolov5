@@ -43,6 +43,8 @@ sd = torch.load(
     map_location="cpu"
 )
 
+sd["EPOCHS_RUN"]
+
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
 img, target = dataset[3]

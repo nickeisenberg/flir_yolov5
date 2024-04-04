@@ -1,3 +1,4 @@
+from copy import deepcopy
 import json
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
@@ -68,6 +69,47 @@ def view_boxes(img: str | Image.Image, boxes: list, show=True):
 
     else:
         return fig
+
+
+
+def view_boxes_actual(img: Image.Image, boxes: list, boxes_actual: list, show=True):
+    # Ensure img is a PIL Image
+    if isinstance(img, str):
+        img = Image.open(img)
+    
+    # Create a copy of the original image for predicted boxes
+    img_pred = deepcopy(img)
+    if img_pred.mode == 'L':
+        img_pred = img_pred.convert("RGB")
+    draw_pred = ImageDraw.Draw(img_pred)
+    for bbox in boxes:
+        x0, y0, w, h = bbox
+        draw_pred.rectangle((x0, y0, x0 + w, y0 + h), outline="red", width=3)
+
+    # Create another copy of the original image for actual boxes
+    img_actual = deepcopy(img)
+    if img_actual.mode == 'L':
+        img_actual = img_actual.convert("RGB")
+    draw_actual = ImageDraw.Draw(img_actual)
+    for bbox in boxes_actual:
+        x0, y0, w, h = bbox
+        draw_actual.rectangle((x0, y0, x0 + w, y0 + h), outline="red", width=3)
+
+    # Display the images side by side
+    fig, ax = plt.subplots(2, 1, figsize=(12, 6))
+    ax[0].imshow(img_pred)
+    ax[0].set_title('Predicted Boxes')
+    ax[0].axis('off')
+    
+    ax[1].imshow(img_actual)
+    ax[1].set_title('Actual Boxes')
+    ax[1].axis('off')
+
+    if show:
+        plt.show()
+    else:
+        return fig
+
 
 
 if __name__ == "__main__":

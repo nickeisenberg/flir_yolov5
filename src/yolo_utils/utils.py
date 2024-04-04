@@ -116,6 +116,30 @@ def make_yolo_anchors(coco: str | dict,
         return anchors
 
 
+def nms(boxes: torch.Tensor, threshold):
+    """
+    Apply non-maximum suppression to suppress overlapping bounding boxes
+    :param boxes: List of bounding boxes in the format [x, y, w, h]
+    :param scores: List of scores for each bounding box
+    :param threshold: IoU threshold for overlapping boxes
+    :return: Indices of boxes to keep
+    """
+
+    box_list = boxes.tolist()
+
+    idxs = [*range(len(boxes))]
+    keep = []
+
+    while idxs:
+        current = idxs.pop(0)
+        keep.append(current)
+        idxs = [idx for idx in idxs if iou(
+            torch.tensor(box_list[current]), torch.tensor(box_list[idx])
+        ) < threshold]
+
+    return keep
+
+
 if __name__ == "__main__":
     pass
 
