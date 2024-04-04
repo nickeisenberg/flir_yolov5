@@ -15,7 +15,7 @@ from src.yolo_utils.box_viewers import (
 )
 from src.yolov5.yolov5 import YOLOv5
 
-from run_experiment.car_and_others.config import (
+from run_experiment.car_and_others_mgen.config import (
     config_coco,
     config_datasets,
     config_train_module_inputs
@@ -45,16 +45,17 @@ sd = torch.load(
 
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
-img, target = vdataset[225]
+# img, target = vdataset[225]
+img, target = vdataset[600]
 img = img.unsqueeze(0)
 prediction = yolov5(img)
 decoded_prediction = decode_yolo_output(
-    prediction, img_width, img_height, .95, anchors, scales, True
+    prediction, img_width, img_height, .9, anchors, scales, True
 )
-pred_box_idxs = nms(decoded_prediction["bboxes"], .3)
+pred_box_idxs = nms(decoded_prediction["bboxes"], .5)
 pred_boxes = decoded_prediction["bboxes"][pred_box_idxs]
 actual = decode_yolo_output(
-    tuple(target), img_width, img_height, .97, anchors, scales, False
+    tuple(target), img_width, img_height, .5, anchors, scales, False
 )
 pil_img: Image.Image = transforms.ToPILImage()(img[0])
 view_boxes_actual(pil_img, pred_boxes, actual["bboxes"])
