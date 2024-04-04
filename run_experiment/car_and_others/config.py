@@ -12,6 +12,7 @@ from src.yolov5.train_module import TrainModule
 
 def config_coco():
     flir_root = os.path.expanduser("~/Datasets/flir")
+
     path = os.path.join(flir_root, "images_thermal_train", "coco.json")
     with open(path, "r") as oj:
         coco = json.load(oj)
@@ -27,7 +28,23 @@ def config_coco():
     tcoco = coco_transformer(
         coco, instructions, (30, 640), (30, 512), (10, 630), (10, 502)
     )
-    return tcoco
+
+    path = os.path.join(flir_root, "images_thermal_val", "coco.json")
+    with open(path, "r") as oj:
+        coco = json.load(oj)
+
+    instructions = {}
+    for cat in coco["categories"]:
+        name = cat["name"]
+        if name not in ['car', 'bus', 'motor', 'other vehicle', 'truck']:
+            instructions[name] = "ignore"
+        elif name in ['bus', 'motor', 'other vehicle', 'truck']:
+            instructions[name] = "vehicle_not_car"
+            
+    vcoco = coco_transformer(
+        coco, instructions, (30, 640), (30, 512), (10, 630), (10, 502)
+    )
+    return tcoco, vcoco
 
 
 def config_save_roots():
@@ -75,7 +92,7 @@ def config_datasets(coco, anchors, scales):
 
 
 def config_trainer():
-    coco = config_coco()
+    tcoco, vcoco = config_coco()
 
     (
         in_channels, 
@@ -86,11 +103,13 @@ def config_trainer():
         scales,
         loss_log_root,
         state_dict_root
-    ) = config_train_module_inputs(coco)
+    ) = config_train_module_inputs(tcoco)
 
-    dataset = config_datasets(coco, anchors, scales)
+    t_dataset = config_datasets(tcoco, anchors, scales)
+    v_dataset = config_datasets(vcoco, anchors, scales)
 
-    train_loader = DataLoader(dataset, 32)
+    train_loader = DataLoader(t_dataset, 32)
+    val_loader = DataLoader(v_dataset, 32)
 
     device = [0, 1]
 
@@ -111,6 +130,7 @@ def config_trainer():
         "train_module": train_module,
         "device": device,
         "train_loader": train_loader,
+        "val_loader": val_loader,
         "num_epochs": num_epochs,
         "unpacker": yolo_unpacker
     }
