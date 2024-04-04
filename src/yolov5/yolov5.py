@@ -42,6 +42,7 @@ class YOLOv5(nn.Module):
         ])
 
     def forward(self, x: torch.Tensor):
+        device = x.device.type
         predictions = []
         for layer in self.bb:
             x = layer(x)
@@ -54,7 +55,7 @@ class YOLOv5(nn.Module):
 
             if isinstance(layer, Conv):
                 self.neck_skips.append(x)
-                x = self.nc(x, self.bb_skips.pop())
+                x = self.nc(x, self.bb_skips.pop().to(device))
 
         for layer in self.head:
             if isinstance(layer, nn.Conv2d):
@@ -73,7 +74,7 @@ class YOLOv5(nn.Module):
 
             x = layer(x)
             if isinstance(layer, Conv):
-                x = torch.concat((x, self.neck_skips.pop()), 1)
+                x = torch.concat((x, self.neck_skips.pop().to(device)), 1)
 
         return tuple(predictions)
 

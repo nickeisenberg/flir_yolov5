@@ -70,7 +70,6 @@ def config_datasets(coco, anchors, scales):
 
     img_root = os.path.expanduser("~/Datasets/flir/images_thermal_train/")
     dataset = YoloDataset(coco, img_root, return_shape, anchors, scales)
-    dataset.data = {idx: dataset.data[idx] for idx in range(100)}
 
     return dataset
 
