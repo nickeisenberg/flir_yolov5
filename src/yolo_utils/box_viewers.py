@@ -72,7 +72,11 @@ def view_boxes(img: str | Image.Image, boxes: list, show=True):
 
 
 
-def view_boxes_actual(img: Image.Image, boxes: list, boxes_actual: list, show=True):
+def view_boxes_actual(img: Image.Image, 
+                      boxes: list, 
+                      boxes_actual: list,
+                      figsize=(12, 6),
+                      show=True):
     # Ensure img is a PIL Image
     if isinstance(img, str):
         img = Image.open(img)
@@ -96,7 +100,7 @@ def view_boxes_actual(img: Image.Image, boxes: list, boxes_actual: list, show=Tr
         draw_actual.rectangle((x0, y0, x0 + w, y0 + h), outline="red", width=3)
 
     # Display the images side by side
-    fig, ax = plt.subplots(2, 1, figsize=(12, 6))
+    fig, ax = plt.subplots(2, 1, figsize=figsize)
     ax[0].imshow(img_pred)
     ax[0].set_title('Predicted Boxes')
     ax[0].axis('off')
