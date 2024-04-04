@@ -19,7 +19,6 @@ class YOLOv5(nn.Module):
             Conv(512, 1024, 3, 2, 1),
             C3(1024, 1024, 3),
         ])
-        self.bb_skips = []
         
         self.nc = UpAndCat()
         self.neck = nn.ModuleList([
@@ -29,7 +28,6 @@ class YOLOv5(nn.Module):
             Conv(512, 256, 1, 1, 0),
             C3(512, 256, 3, False),
         ])
-        self.neck_skips = []
         
         self.head = nn.ModuleList([
             nn.Conv2d(256, (5 + self.num_classes) * 3, 1, 1, 0),
@@ -43,19 +41,22 @@ class YOLOv5(nn.Module):
 
     def forward(self, x: torch.Tensor):
         device = x.device.type
+
+        bb_skips = []
+        neck_skips = []
+
         predictions = []
         for layer in self.bb:
             x = layer(x)
 
             if isinstance(layer, C3) and x.shape[1] in [256, 512]:
-                self.bb_skips.append(x)
-
+                bb_skips.append(x)
+        
         for layer in self.neck:
             x = layer(x)
-
             if isinstance(layer, Conv):
-                self.neck_skips.append(x)
-                x = self.nc(x, self.bb_skips.pop().to(device))
+                neck_skips.append(x)
+                x = self.nc(x, bb_skips.pop().to(device))
 
         for layer in self.head:
             if isinstance(layer, nn.Conv2d):
@@ -74,7 +75,7 @@ class YOLOv5(nn.Module):
 
             x = layer(x)
             if isinstance(layer, Conv):
-                x = torch.concat((x, self.neck_skips.pop().to(device)), 1)
+                x = torch.concat((x, neck_skips.pop().to(device)), 1)
 
         return tuple(predictions)
 
