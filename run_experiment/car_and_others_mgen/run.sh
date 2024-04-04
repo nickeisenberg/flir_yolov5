@@ -5,7 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=2
 #SBATCH --gres=gpu:2
-#SBATCH --partition=pvis
+#SBATCH --partition=pbatch
+#SBATCH --time=12:00:00
 
 srun /g/g11/eisenbnt/venvs/base/bin/python3 \
-	        -u /g/g11/eisenbnt/projects/flir_yolov5/run_experiment/car_and_others_mgen/__main__.py
+    -u /g/g11/eisenbnt/projects/flir_yolov5/run_experiment/car_and_others_mgen/__main__.py
