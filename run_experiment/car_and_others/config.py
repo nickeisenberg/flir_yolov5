@@ -110,10 +110,10 @@ def config_trainer():
 
     t_dataset, v_dataset = config_datasets(tcoco, vcoco, anchors, scales)
 
-    train_loader = DataLoader(t_dataset, 32)
-    val_loader = DataLoader(v_dataset, 32)
+    train_loader = DataLoader(t_dataset, 16)
+    val_loader = DataLoader(v_dataset, 16)
 
-    device = [0, 1]
+    device = 0
 
     train_module = TrainModule(
         yolo=YOLOv5(in_channels, num_classes),
