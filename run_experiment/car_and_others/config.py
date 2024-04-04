@@ -52,7 +52,7 @@ def config_train_module_inputs(coco):
     if not os.path.isdir(state_dict_root):
         os.makedirs(state_dict_root)
     in_channels = 1
-    num_classes = 8 + 1
+    num_classes = 81 + 1
     img_width = 640
     img_height = 512
     anchors = make_yolo_anchors(coco, img_width, img_height, 9)
