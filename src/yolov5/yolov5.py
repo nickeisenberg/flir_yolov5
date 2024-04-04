@@ -18,12 +18,12 @@ class YOLOv5(nn.Module):
             C3(512, 512, 9),
             Conv(512, 1024, 3, 2, 1),
             C3(1024, 1024, 3),
-            SPPF(1024, 1024)
         ])
         self.bb_skips = []
         
         self.nc = UpAndCat()
         self.neck = nn.ModuleList([
+            SPPF(1024, 1024),
             Conv(1024, 512, 1, 1, 0),
             C3(1024, 512, 3, False),
             Conv(512, 256, 1, 1, 0),
@@ -150,8 +150,6 @@ if __name__ == "__main__":
     yolo_v5 = YOLOv5(3, 5)
     yolo_v5 = yolo_v5.eval()
     with torch.no_grad():
-        output = yolo_v5(torch.randn((15, 3, 512, 640)))
+        output = yolo_v5(torch.randn((1, 3, 512, 640)))
     for scale in output:
         print(scale.shape)
-
-
