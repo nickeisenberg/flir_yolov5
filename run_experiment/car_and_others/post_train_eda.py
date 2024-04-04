@@ -45,11 +45,11 @@ sd = torch.load(
 
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
-img, target = vdataset[400]
+img, target = vdataset[225]
 img = img.unsqueeze(0)
 prediction = yolov5(img)
 decoded_prediction = decode_yolo_output(
-    prediction, img_width, img_height, .9, anchors, scales, True
+    prediction, img_width, img_height, .95, anchors, scales, True
 )
 pred_box_idxs = nms(decoded_prediction["bboxes"], .3)
 pred_boxes = decoded_prediction["bboxes"][pred_box_idxs]
@@ -58,7 +58,6 @@ actual = decode_yolo_output(
 )
 pil_img: Image.Image = transforms.ToPILImage()(img[0])
 view_boxes_actual(pil_img, pred_boxes, actual["bboxes"])
-
 
 loss_df = pd.read_csv(os.path.join(loss_log_root, "train_log.csv"))
 loss_df["batch"] = loss_df.index // (486 * 3)
