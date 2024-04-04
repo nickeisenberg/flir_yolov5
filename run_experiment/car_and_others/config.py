@@ -78,7 +78,7 @@ def config_train_module_inputs(coco):
             loss_log_root, state_dict_root]
 
 
-def config_datasets(coco, anchors, scales):
+def config_datasets(tcoco, vcoco, anchors, scales):
     return_shape = (
         (3, 16, 20, 6),
         (3, 32, 40, 6),
@@ -86,9 +86,12 @@ def config_datasets(coco, anchors, scales):
     )
 
     img_root = os.path.expanduser("~/Datasets/flir/images_thermal_train/")
-    dataset = YoloDataset(coco, img_root, return_shape, anchors, scales)
+    tdataset = YoloDataset(tcoco, img_root, return_shape, anchors, scales)
 
-    return dataset
+    img_root = os.path.expanduser("~/Datasets/flir/images_thermal_val/")
+    vdataset = YoloDataset(vcoco, img_root, return_shape, anchors, scales)
+
+    return tdataset, vdataset
 
 
 def config_trainer():
@@ -105,8 +108,7 @@ def config_trainer():
         state_dict_root
     ) = config_train_module_inputs(tcoco)
 
-    t_dataset = config_datasets(tcoco, anchors, scales)
-    v_dataset = config_datasets(vcoco, anchors, scales)
+    t_dataset, v_dataset = config_datasets(tcoco, vcoco, anchors, scales)
 
     train_loader = DataLoader(t_dataset, 32)
     val_loader = DataLoader(v_dataset, 32)
