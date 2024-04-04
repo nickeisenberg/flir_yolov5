@@ -18,11 +18,11 @@ class YOLOv5(nn.Module):
             C3(512, 512, 9),
             Conv(512, 1024, 3, 2, 1),
             C3(1024, 1024, 3),
+            SPPF(1024, 1024),
         ])
         
         self.nc = UpAndCat()
         self.neck = nn.ModuleList([
-            SPPF(1024, 1024),
             Conv(1024, 512, 1, 1, 0),
             C3(1024, 512, 3, False),
             Conv(512, 256, 1, 1, 0),
