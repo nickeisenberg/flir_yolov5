@@ -39,19 +39,19 @@ tdataset, vdataset = config_datasets(tcoco, vcoco, anchors, scales)
 yolov5 = YOLOv5(in_channels, num_classes)
 
 sd = torch.load(
-    os.path.join(state_dict_root, "val_ckp.pth"),
+    os.path.join(state_dict_root +'.2', "val_ckp.pth"),
     map_location="cpu"
 )
 
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
 img, target = vdataset[225]
-# img, target = vdataset[441]
-# img, target = vdataset[45]
-# img, target = vdataset[105]
-# img, target = vdataset[118]
-# img, target = vdataset[600]
-img, target = vdataset[700]
+img, target = vdataset[441]
+img, target = vdataset[45]
+img, target = vdataset[105]
+img, target = vdataset[118]
+img, target = vdataset[600]
+# img, target = vdataset[700]
 img = img.unsqueeze(0)
 prediction = yolov5(img)
 decoded_prediction = decode_yolo_output(
