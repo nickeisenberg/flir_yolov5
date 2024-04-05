@@ -45,10 +45,11 @@ sd = torch.load(
 
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
-# img, target = vdataset[225]
+img, target = vdataset[225]
 # img, target = vdataset[45]
 # img, target = vdataset[105]
-img, target = vdataset[118]
+# img, target = vdataset[118]
+# img, target = vdataset[600]
 img = img.unsqueeze(0)
 prediction = yolov5(img)
 decoded_prediction = decode_yolo_output(
@@ -63,14 +64,14 @@ pil_img: Image.Image = transforms.ToPILImage()(img[0])
 view_boxes_actual(pil_img, pred_boxes, actual["bboxes"])
 
 loss_df = pd.read_csv(os.path.join(loss_log_root, "train_log.csv"))
-loss_df["batch"] = loss_df.index // (486 * 3)
+loss_df["batch"] = loss_df.index // (272 * 3)
 loss_df = loss_df.groupby("batch").mean()
 loss_df = loss_df.drop("batch", axis=1)
 loss_df.plot()
 plt.show()
 
 loss_df = pd.read_csv(os.path.join(loss_log_root, "val_log.csv"))
-loss_df["batch"] = loss_df.index // (53 * 3)
+loss_df["batch"] = loss_df.index // (30 * 3)
 loss_df = loss_df.groupby("batch").mean()
 loss_df = loss_df.drop("batch", axis=1)
 loss_df.plot()
