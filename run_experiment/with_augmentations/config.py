@@ -1,9 +1,12 @@
 import os
 import json
 
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+import cv2
 from torch.utils.data import DataLoader
 
-from src.yolo_utils.dataset import YoloDataset, yolo_unpacker
+from src.yolo_utils.dataset import YoloDataset2, yolo_unpacker
 from src.yolo_utils.utils import make_yolo_anchors
 from src.yolo_utils.coco_transformer import coco_transformer
 from src.yolov5.yolov5 import YOLOv5
@@ -11,7 +14,7 @@ from src.yolov5.train_module import TrainModule
 
 
 def config_coco():
-    flir_root = os.path.expanduser("~/Datasets/flir")
+    flir_root = os.path.expanduser("~/datasets/flir")
 
     path = os.path.join(flir_root, "images_thermal_train", "coco.json")
     with open(path, "r") as oj:
@@ -20,29 +23,29 @@ def config_coco():
     instructions = {}
     for cat in coco["categories"]:
         name = cat["name"]
-        if name not in ['car', 'bus', 'motor', 'other vehicle', 'truck']:
+        if name not in [
+            'car', 
+            'person', 
+            'sign', 
+            'light', 
+            'bike', 
+            'bus', 
+            'other vehicle',
+            'motor', 
+            'truck', 
+        ]:
             instructions[name] = "ignore"
-        elif name in ['bus', 'motor', 'other vehicle', 'truck']:
-            instructions[name] = "vehicle_not_car"
-            
+    
     tcoco = coco_transformer(
-        coco, instructions, (30, 640), (30, 512), (10, 630), (10, 502)
+        coco, instructions, (25, 640), (25, 512), (0, 640), (0, 512)
     )
 
     path = os.path.join(flir_root, "images_thermal_val", "coco.json")
     with open(path, "r") as oj:
         coco = json.load(oj)
 
-    instructions = {}
-    for cat in coco["categories"]:
-        name = cat["name"]
-        if name not in ['car', 'bus', 'motor', 'other vehicle', 'truck']:
-            instructions[name] = "ignore"
-        elif name in ['bus', 'motor', 'other vehicle', 'truck']:
-            instructions[name] = "vehicle_not_car"
-            
     vcoco = coco_transformer(
-        coco, instructions, (30, 640), (30, 512), (10, 630), (10, 502)
+        coco, instructions, (25, 640), (25, 512), (0, 640), (0, 512)
     )
     return tcoco, vcoco
 
@@ -57,7 +60,7 @@ def config_train_module_inputs(coco):
     if not os.path.isdir(state_dict_root):
         os.makedirs(state_dict_root)
     in_channels = 1
-    num_classes = 81 + 1
+    num_classes = 79 + 1
     img_width = 640
     img_height = 512
     anchors = make_yolo_anchors(coco, img_width, img_height, 9)
@@ -73,11 +76,56 @@ def config_datasets(tcoco, vcoco, anchors, scales):
         (3, 64, 80, 6),
     )
 
-    img_root = os.path.expanduser("~/Datasets/flir/images_thermal_train/")
-    tdataset = YoloDataset(tcoco, img_root, return_shape, anchors, scales)
+    scale = 1.1
+    train_transform = A.Compose(
+        [
+            A.LongestMaxSize(max_size=int(640 * scale)),
+            A.PadIfNeeded(
+                min_height=int(512 * scale),
+                min_width=int(640 * scale),
+                border_mode=cv2.BORDER_CONSTANT,
+            ),
+            A.RandomCrop(width=640, height=512),
+            A.ColorJitter(brightness=0.6, contrast=0.6, saturation=0.6, hue=0.6, p=0.4),
+            A.HorizontalFlip(p=0.5),
+            A.Blur(p=0.1),
+            A.CLAHE(p=0.1),
+            A.Posterize(p=0.1),
+            A.Normalize(mean=[0], std=[1], max_pixel_value=255,),
+            ToTensorV2(),
+        ],
+        bbox_params=A.BboxParams(
+            format="coco", min_visibility=0.4, label_fields=["labels"],
+        ),
+    )
+    img_root = os.path.expanduser("~/datasets/flir/images_thermal_train/")
+    tdataset = YoloDataset2(
+        coco=tcoco, 
+        img_root=img_root,
+        return_shape=return_shape,
+        normalized_anchors=anchors,
+        scales=scales,
+        transform=train_transform
+    )
 
-    img_root = os.path.expanduser("~/Datasets/flir/images_thermal_val/")
-    vdataset = YoloDataset(vcoco, img_root, return_shape, anchors, scales)
+    val_transform = A.Compose(
+        [
+            A.Normalize(mean=[0], std=[1], max_pixel_value=255,),
+            ToTensorV2(),
+        ],
+        bbox_params=A.BboxParams(
+            format="coco", min_visibility=0.4, label_fields=["labels"],
+        ),
+    )
+    img_root = os.path.expanduser("~/datasets/flir/images_thermal_val/")
+    vdataset = YoloDataset2(
+        coco=vcoco, 
+        img_root=img_root, 
+        return_shape=return_shape, 
+        normalized_anchors=anchors, 
+        scales=scales,
+        transform=val_transform
+    )
 
     return tdataset, vdataset
 
@@ -98,10 +146,10 @@ def config_trainer():
 
     t_dataset, v_dataset = config_datasets(tcoco, vcoco, anchors, scales)
 
-    train_loader = DataLoader(t_dataset, 16)
-    val_loader = DataLoader(v_dataset, 16)
+    train_loader = DataLoader(t_dataset, 32)
+    val_loader = DataLoader(v_dataset, 32)
 
-    device = 0
+    device = [0, 1]
 
     train_module = TrainModule(
         yolo=YOLOv5(in_channels, num_classes),
@@ -126,30 +174,3 @@ def config_trainer():
     }
 
     return config
-
-
-if __name__ == "__main__":
-    pass
-
-# coco, _ = config_coco()
-# 
-# id_to_name = {cat["id"]: cat["name"] for cat in coco["categories"]}
-# cat_counts = {cat["name"]: 0 for cat in coco["categories"]}
-# 
-# for ann in coco["annotations"]:
-#     cat = id_to_name[ann["category_id"]]
-#     cat_counts[cat] += 1
-# 
-# for tup in sorted(cat_counts.items(), key=lambda x: x[1])[:: -1]:
-#     if tup[1] > 0:
-#         print(tup)
-# 
-# _, num, _, _, ancs, scales, _, _ = config_train_module_inputs(coco)
-# dataset, _ = config_datasets(coco, _, ancs, scales)
-# 
-# ids = []
-# for idx in range(len(dataset.data)):
-#     for id in dataset.data[idx]["category_ids"]:
-#         if id not in ids:
-#             ids.append(id)
-

@@ -135,6 +135,13 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
                 w = torch.exp(w) * scaled_ancs[anc_id][0] * scale
                 h = torch.exp(h) * scaled_ancs[anc_id][1] * scale
 
+                decoded_output['bboxes'].append(
+                    [x.item(), y.item(), w.item(), h.item()]
+                )
+                decoded_output['category_ids'].append(int(label_id.item()))
+                decoded_output['scores'].append(p.item())
+                decoded_output['dims'].append(list(dim))
+
             else:
                 anc_id, row, col = dim
 
@@ -143,12 +150,15 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
                 w = w * scale
                 h = h * scale
 
-            decoded_output['bboxes'].append(
-                [x.item(), y.item(), w.item(), h.item()]
-            )
-            decoded_output['category_ids'].append(int(label_id.item()))
-            decoded_output['scores'].append(p.item())
-            decoded_output['dims'].append(list(dim))
+                bbox = [x.item(), y.item(), w.item(), h.item()]
+                
+                if not bbox in decoded_output['bboxes']:
+                    decoded_output['bboxes'].append(
+                        [x.item(), y.item(), w.item(), h.item()]
+                    )
+                    decoded_output['category_ids'].append(int(label_id.item()))
+                    decoded_output['scores'].append(p.item())
+                    decoded_output['dims'].append(list(dim))
 
     for k in decoded_output.keys():
         decoded_output[k] = torch.tensor(decoded_output[k])
