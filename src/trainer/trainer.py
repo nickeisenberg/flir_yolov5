@@ -28,14 +28,14 @@ class Trainer:
 
         epochs_run = self.train_module.epochs_run
         for epoch in range(epochs_run + 1, num_epochs + 1):
-            self.epoch_pass("train", train_loader, device, unpacker)
+            self.epoch_pass("train", epoch, train_loader, device, unpacker)
             self.train_module.logger.log_epoch("train")
              
             if self.train_module.logger.save_checkpoint_flag("train"):
                 self.train_module.save_checkpoint("train", epoch)
 
             if val_loader is not None:
-                self.epoch_pass("val", val_loader, device, unpacker)
+                self.epoch_pass("val", epoch, val_loader, device, unpacker)
                 self.train_module.logger.log_epoch("val")
 
                 if self.train_module.logger.save_checkpoint_flag("val"):
@@ -43,7 +43,8 @@ class Trainer:
 
 
     def epoch_pass(self, 
-                   which: str, 
+                   which: str,
+                   epoch: int,
                    loader: DataLoader, 
                    device: str | int, 
                    unpacker: Callable):
@@ -56,11 +57,17 @@ class Trainer:
             if which == "train":
                 self.train_module.train_batch_pass(*data)
                 pbar.set_postfix(
-                    None, True, **self.train_module.logger._avg_epoch_history
+                    None, 
+                    True,
+                    EPOCH=epoch,
+                    **self.train_module.logger._avg_epoch_history
                 )
 
             elif which == "val":
                 self.train_module.val_batch_pass(*data)
                 pbar.set_postfix(
-                    None, True, **self.train_module.logger._avg_epoch_history
+                    None, 
+                    True, 
+                    EPOCH=epoch,
+                    **self.train_module.logger._avg_epoch_history
                 )
