@@ -36,6 +36,7 @@ class TrainModule(Module):
         else:
             raise Exception("wrong model initialization")
 
+
         self.loss_fn = YOLOLoss()
         self.optimizer = Adam(self.model.parameters(), lr=.0001)
         
@@ -70,9 +71,9 @@ class TrainModule(Module):
 
         inputs, targets = args
 
-        device = inputs.device.type
+        _device = inputs.device.type
 
-        self.scaled_anchors = self.scaled_anchors.to(device)
+        self.scaled_anchors = self.scaled_anchors.to(_device)
 
         assert type(inputs) == Tensor
         targets = cast(tuple[Tensor, ...], targets)
@@ -81,7 +82,7 @@ class TrainModule(Module):
 
         outputs = self.model(inputs)
 
-        total_loss = tensor(0.0, requires_grad=True).to(device)
+        total_loss = tensor(0.0, requires_grad=True).to(_device)
         for scale_id, (output, target) in enumerate(zip(outputs, targets)):
             scaled_anchors = self.scaled_anchors[3 * scale_id: 3 * (scale_id + 1)]
             loss, batch_history = self.loss_fn(output, target, scaled_anchors)
@@ -97,13 +98,12 @@ class TrainModule(Module):
         self.model.eval()
 
         inputs, targets = args
-        device = inputs.device.type
+        _device = inputs.device.type
 
         assert type(inputs) == Tensor
         targets = cast(tuple[Tensor, ...], targets)
         
-
-        self.scaled_anchors = self.scaled_anchors.to(device)
+        self.scaled_anchors = self.scaled_anchors.to(_device)
         
         with no_grad():
             outputs = self.model(inputs)
