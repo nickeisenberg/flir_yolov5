@@ -162,7 +162,7 @@ def config_trainer():
         state_dict_root=state_dict_root
     )
 
-    num_epochs = 100
+    num_epochs = 200
 
     config = {
         "train_module": train_module,
