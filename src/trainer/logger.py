@@ -79,6 +79,6 @@ class CSVLogger:
             value = self.validation_history[check_key][-1]
             if self.validation_check(value, self.best_validation_val):
                 save_ckp = True
-                self.best_train_val = value
+                self.best_validation_val = value
         
         return save_ckp
