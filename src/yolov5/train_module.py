@@ -134,23 +134,23 @@ class TrainModule(Module):
         print(f"EPOCH {epoch} checkpoint saved at {save_to}")
 
 
-    def load_checkpoint(self, which="train", load_from: str | None = None):
+    def load_checkpoint(self, load_from: str | None = None):
         if load_from is None:
             load_from = os.path.join(
-                self.state_dict_root, f"{which}_ckp.pth"
+                self.state_dict_root, f"train_ckp.pth"
             )
-        checkpoint = load(load_from)
+        train_checkpoint = load(load_from)
 
-        for state in checkpoint["OPTIMIZER_STATE"]["state"].values():
+        for state in train_checkpoint["OPTIMIZER_STATE"]["state"].values():
             for k, v in state.items():
                 if isinstance(v, Tensor):
                     state[k] = v.to(self.device)
 
         if isinstance(self.model, DataParallel):
-            self.model.module.load_state_dict(checkpoint["MODEL_STATE"])
-            self.optimizer.load_state_dict(checkpoint["OPTIMIZER_STATE"])
-            self.epochs_run = checkpoint["EPOCHS_RUN"]
+            self.model.module.load_state_dict(train_checkpoint["MODEL_STATE"])
+            self.optimizer.load_state_dict(train_checkpoint["OPTIMIZER_STATE"])
+            self.epochs_run = train_checkpoint["EPOCHS_RUN"]
         else:
-            self.model.load_state_dict(checkpoint["MODEL_STATE"])
-            self.optimizer.load_state_dict(checkpoint["OPTIMIZER_STATE"])
-            self.epochs_run = checkpoint["EPOCHS_RUN"]
+            self.model.load_state_dict(train_checkpoint["MODEL_STATE"])
+            self.optimizer.load_state_dict(train_checkpoint["OPTIMIZER_STATE"])
+            self.epochs_run = train_checkpoint["EPOCHS_RUN"]

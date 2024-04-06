@@ -20,9 +20,6 @@ class CSVLogger:
 
         self._epoch_history = defaultdict(list)
         self._avg_epoch_history = defaultdict(float)
-        
-        self.best_val_loss = 1e6
-        self.best_train_loss = 1e6
 
         self.best_train_val = best_train_val
         self.train_check = train_check
