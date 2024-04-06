@@ -26,8 +26,6 @@ def config_coco():
         if name not in [
             'car', 
             'person', 
-            'sign', 
-            'light', 
             'bike', 
             'bus', 
             'other vehicle',
