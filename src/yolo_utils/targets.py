@@ -1,4 +1,5 @@
 import torch
+from torch import Tensor
 from torch.nn import Sigmoid
 
 from ..yolo_utils.utils import iou
@@ -84,26 +85,24 @@ def _populate_yolo_target_for_one_bbox(target: tuple[torch.Tensor, ...],
     return target
 
 
-def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
-                       img_width,
-                       img_height,
-                       p_thresh: float,
-                       normalized_anchors,
-                       scales,
+def decode_yolo_output(yolo_output: tuple[Tensor, ...],
+                       img_width: int,
+                       img_height: int,
+                       normalized_anchors: Tensor,
+                       scales: list[int],
+                       p_thresh: float | None = None,
                        is_pred: bool = True):
 
     sigmoid = Sigmoid()
 
-    bboxes: list[float] = []
-    category_ids: list[int] = []
+    boxes: list[float] = []
+    labels: list[int] = []
     scores: list[float] = []
-    dims: list[int] = []
 
     decoded_output = {
-        "bboxes": bboxes, 
-        "category_ids": category_ids, 
+        "boxes": boxes, 
+        "labels": labels, 
         "scores": scores, 
-        "dims": dims 
     }
 
     for scale_id, t in enumerate(yolo_output):
@@ -113,10 +112,15 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
             [img_width / scale, img_height / scale]
         )
         scaled_ancs = scaled_ancs[3 * scale_id: 3 * (scale_id + 1)]
-    
-        dims_where: list[tuple[torch.Tensor, ...]] = list(
-            zip(*torch.where(t[..., 0:1] >= p_thresh)[:-1])
-        )
+        
+        if is_pred:
+            dims_where: list[tuple[torch.Tensor, ...]] = list(
+                zip(*torch.where(t[..., 0:1] >= p_thresh)[:-1])
+            )
+        else:
+            dims_where: list[tuple[torch.Tensor, ...]] = list(
+                zip(*torch.where(t[..., 0:1] >= .8)[:-1])
+            )
 
         for dim in dims_where:
             if is_pred:
@@ -135,12 +139,11 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
                 w = torch.exp(w) * scaled_ancs[anc_id][0] * scale
                 h = torch.exp(h) * scaled_ancs[anc_id][1] * scale
 
-                decoded_output['bboxes'].append(
+                decoded_output['boxes'].append(
                     [x.item(), y.item(), w.item(), h.item()]
                 )
-                decoded_output['category_ids'].append(int(label_id.item()))
+                decoded_output['labels'].append(int(label_id.item()))
                 decoded_output['scores'].append(p.item())
-                decoded_output['dims'].append(list(dim))
 
             else:
                 anc_id, row, col = dim
@@ -152,13 +155,12 @@ def decode_yolo_output(yolo_output: tuple[torch.Tensor, ...],
 
                 bbox = [x.item(), y.item(), w.item(), h.item()]
                 
-                if not bbox in decoded_output['bboxes']:
-                    decoded_output['bboxes'].append(
+                if not bbox in decoded_output['boxes']:
+                    decoded_output['boxes'].append(
                         [x.item(), y.item(), w.item(), h.item()]
                     )
-                    decoded_output['category_ids'].append(int(label_id.item()))
+                    decoded_output['labels'].append(int(label_id.item()))
                     decoded_output['scores'].append(p.item())
-                    decoded_output['dims'].append(list(dim))
 
     for k in decoded_output.keys():
         decoded_output[k] = torch.tensor(decoded_output[k])

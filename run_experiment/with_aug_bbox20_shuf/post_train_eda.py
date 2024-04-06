@@ -6,6 +6,8 @@ import torchvision.transforms as transforms
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from torchmetrics.detection import MeanAveragePrecision
+
 from PIL import Image
 
 from src.yolo_utils.targets import decode_yolo_output
@@ -58,13 +60,13 @@ decoded_prediction = decode_yolo_output(
 )
 pred_box_idxs = nms(decoded_prediction["bboxes"], .3)
 pred_boxes = decoded_prediction["bboxes"][pred_box_idxs]
-pred_labels = decoded_prediction["category_ids"][pred_box_idxs].tolist()
+pred_labels = decoded_prediction["category_ids"][pred_box_idxs]
 pred_scores = decoded_prediction["scores"][pred_box_idxs]
 actual = decode_yolo_output(
     tuple(target), img_width, img_height, .3, anchors, scales, False
 )
 actual_boxes = actual["bboxes"]
-actual_labels = actual["category_ids"].tolist()
+actual_labels = actual["category_ids"]
 pil_img: Image.Image = transforms.ToPILImage()(img[0])
 view_pred_vs_actual(
     pil_img, boxes=pred_boxes.tolist(), 
@@ -74,8 +76,22 @@ view_pred_vs_actual(
     labels_actual=actual_labels
 )
 
-print(actual_labels)
-print(pred_labels)
+preds = [{
+    "boxes": pred_boxes,
+    "scores": pred_scores,
+    "labels": pred_labels
+}]
+target = [{
+    "boxes": actual_boxes,
+    "labels": actual_labels
+}]
+map = MeanAveragePrecision(box_format='xywh', iou_thresholds=[.7], class_metrics=True)
+map.update(preds, target)
+from pprint import pprint
+pprint(map.compute()["map"])
+pprint(map.compute()["map_per_class"])
+pprint(map.compute()["classes"])
+
 
 loss_df = pd.read_csv(os.path.join(loss_log_root, "train_log.csv"))
 loss_df["batch"] = loss_df.index // (272 * 3)
