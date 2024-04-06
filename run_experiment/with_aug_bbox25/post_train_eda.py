@@ -15,7 +15,7 @@ from src.yolo_utils.box_viewers import (
 )
 from src.yolov5.yolov5 import YOLOv5
 
-from run_experiment.with_augmentations.config import (
+from run_experiment.with_aug_bbox25.config import (
     config_coco,
     config_datasets,
     config_train_module_inputs
@@ -50,7 +50,7 @@ yolov5.load_state_dict(sd["MODEL_STATE"])
 # img, target = vdataset[105]
 # img, target = vdataset[118]
 # img, target = vdataset[600]
-img, target = vdataset[701]
+img, target = vdataset[706]
 img = img.unsqueeze(0)
 prediction = yolov5(img)
 decoded_prediction = decode_yolo_output(
