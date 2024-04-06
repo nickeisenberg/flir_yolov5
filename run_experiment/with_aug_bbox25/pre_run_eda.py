@@ -52,7 +52,7 @@ for cat in stats:
     if cat not in cats:
         continue
     bbox = stats[cat]["bboxes"]
-    print(cat, np.quantile(bbox[:, 2:], [.25], axis=0))
+    print(cat, np.quantile(bbox[:, 2:], [.1], axis=0))
     print(cat, np.mean(bbox[:, 2:], axis=0))
     print(cat, np.min(bbox[:, 2:], axis=0))
 
