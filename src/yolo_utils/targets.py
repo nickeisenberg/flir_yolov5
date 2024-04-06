@@ -110,6 +110,10 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
         "scores": scores, 
     }
 
+    batch_size = yolo_tuple[0].size(0)
+    for scale_pred in yolo_tuple:
+        assert scale_pred.size(0) == batch_size
+
     for scale_id, t in enumerate(yolo_tuple):
 
         scale = scales[scale_id]
@@ -151,7 +155,7 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                 decoded_tuple['scores'].append(p.item())
 
             else:
-                anc_id, row, col = dim
+                batch_id, anc_id, row, col = dim
 
                 p, x, y, w, h, label_id = t[dim]
                 x, y = (x + col.item()) * scale, (y + row.item()) * scale

@@ -3,11 +3,15 @@ from sys import path
 path.append(os.path.expanduser("~/GitRepos/flir_yolov5"))
 import torch
 import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from torchmetrics.detection import MeanAveragePrecision
+
 from PIL import Image
 
+from src.yolo_utils.dataset import yolo_unpacker
 from src.yolo_utils.targets import decode_yolo_tuple
 from src.yolo_utils.box_viewers import (
     view_pred_vs_actual,
@@ -43,6 +47,37 @@ sd = torch.load(
 )
 
 yolov5.load_state_dict(sd["MODEL_STATE"])
+
+
+dataloader = DataLoader(vdataset, 16)
+map = MeanAveragePrecision(box_format='xywh')
+
+yolov5.eval()
+with torch.no_grad():
+    for batch in dataloader:
+        inputs, targets = yolo_unpacker(batch, "cpu")
+        predictions = yolov5(inputs)
+        decoded_prediction = decode_yolo_tuple(
+            yolo_tuple=predictions, 
+            img_width=img_width, 
+            img_height=img_height, 
+            normalized_anchors=anchors, 
+            scales=scales, 
+            score_thresh=.95,
+            iou_thresh=.3,
+            is_pred=True
+        )
+        actual = decode_yolo_tuple(
+            yolo_tuple=targets, 
+            img_width=img_width, 
+            img_height=img_height, 
+            normalized_anchors=anchors, 
+            scales=scales, 
+            is_pred=False
+        )
+        map.update(preds=[predictions], target=[actual])
+        break
+
 
 
  #img, target = vdataset[225]
