@@ -1,6 +1,7 @@
 from copy import deepcopy
 import json
 from PIL import Image, ImageDraw
+from PIL.ImageFont import ImageFont
 import matplotlib.pyplot as plt
 import torch
 from torchvision.transforms import transforms
@@ -71,12 +72,14 @@ def view_boxes(img: str | Image.Image, boxes: list, show=True):
         return fig
 
 
-
-def view_boxes_actual(img: Image.Image, 
-                      boxes: list, 
-                      boxes_actual: list,
-                      figsize=(12, 6),
-                      show=True):
+def view_pred_vs_actual(img: Image.Image, 
+                        boxes: list, 
+                        scores: list, 
+                        labels: list,
+                        boxes_actual: list, 
+                        labels_actual: list,
+                        figsize=(12, 6),
+                        show=True):
     # Ensure img is a PIL Image
     if isinstance(img, str):
         img = Image.open(img)
@@ -86,21 +89,25 @@ def view_boxes_actual(img: Image.Image,
     if img_pred.mode == 'L':
         img_pred = img_pred.convert("RGB")
     draw_pred = ImageDraw.Draw(img_pred)
-    for bbox in boxes:
+    
+    # Draw predicted boxes, scores, and labels
+    for bbox, score, label in zip(boxes, scores, labels):
         x0, y0, w, h = bbox
         draw_pred.rectangle((x0, y0, x0 + w, y0 + h), outline="red", width=3)
-
+    
     # Create another copy of the original image for actual boxes
     img_actual = deepcopy(img)
     if img_actual.mode == 'L':
         img_actual = img_actual.convert("RGB")
     draw_actual = ImageDraw.Draw(img_actual)
-    for bbox in boxes_actual:
+    
+    # Draw actual boxes and labels
+    for bbox, label in zip(boxes_actual, labels_actual):
         x0, y0, w, h = bbox
-        draw_actual.rectangle((x0, y0, x0 + w, y0 + h), outline="red", width=3)
-
+        draw_actual.rectangle((x0, y0, x0 + w, y0 + h), outline="green", width=3)
+    
     # Display the images side by side
-    fig, ax = plt.subplots(2, 1, figsize=figsize)
+    fig, ax = plt.subplots(1, 2, figsize=figsize)
     ax[0].imshow(img_pred)
     ax[0].set_title('Predicted Boxes')
     ax[0].axis('off')
@@ -113,7 +120,6 @@ def view_boxes_actual(img: Image.Image,
         plt.show()
     else:
         return fig
-
 
 
 if __name__ == "__main__":
