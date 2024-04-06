@@ -5,8 +5,8 @@ from torch.nn import Sigmoid
 from ..yolo_utils.utils import iou
 
 def build_yolo_target(return_shape: tuple[tuple, ...],
-                      bboxes: list[torch.Tensor], 
-                      label_ids: list[int], 
+                      bboxes: list[torch.Tensor] | torch.Tensor, 
+                      label_ids: list[int] | torch.Tensor, 
                       normalized_anchors: torch.Tensor, 
                       scales: list[int],
                       img_width: int, 
@@ -24,7 +24,7 @@ def build_yolo_target(return_shape: tuple[tuple, ...],
 
     for bbox, label_id in zip(bboxes, label_ids):
         target = _populate_yolo_target_for_one_bbox(
-            target=target, bbox=bbox, label_id=label_id, anchors=anchors,
+            target=target, bbox=bbox, label_id=int(label_id), anchors=anchors,
             scales=scales, iou_thresh=iou_thresh
         )
 
@@ -85,17 +85,21 @@ def _populate_yolo_target_for_one_bbox(target: tuple[torch.Tensor, ...],
     return target
 
 
-def decode_yolo_output(yolo_output: tuple[Tensor, ...],
-                       img_width: int,
-                       img_height: int,
-                       normalized_anchors: Tensor,
-                       scales: list[int],
-                       p_thresh: float | None = None,
-                       is_pred: bool = True):
+def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
+                      img_width: int,
+                      img_height: int,
+                      normalized_anchors: Tensor,
+                      scales: list[int],
+                      p_thresh: float | None = None,
+                      is_pred: bool = True):
+    """ Decode a yolo prediction tuple or a yolo target into a dictionary
+    with keys boxes, labels and scores. The scores key will be ignored in the
+    case that the yolo tuple is a target
+    """
 
     sigmoid = Sigmoid()
 
-    boxes: list[float] = []
+    boxes: list[list[float]] = []
     labels: list[int] = []
     scores: list[float] = []
 
@@ -105,7 +109,7 @@ def decode_yolo_output(yolo_output: tuple[Tensor, ...],
         "scores": scores, 
     }
 
-    for scale_id, t in enumerate(yolo_output):
+    for scale_id, t in enumerate(yolo_tuple):
 
         scale = scales[scale_id]
         scaled_ancs = normalized_anchors * torch.tensor(

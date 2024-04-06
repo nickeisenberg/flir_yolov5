@@ -154,23 +154,23 @@ class YoloDataset2(Dataset):
     def __getitem__(self, idx):
         data = self.data[idx]
         file_name = data["file_name"]
-        bboxes = data["bboxes"]
-        category_ids = data["category_ids"]
+        boxes = data["bboxes"]
+        labels = data["category_ids"]
 
         image = np.array(Image.open(file_name).convert("L"))
 
         augmentations = self.transform(
-            image=image, bboxes=bboxes, labels=category_ids
+            image=image, bboxes=boxes, labels=labels
         )
 
         image = augmentations["image"]
-        bboxes = [tensor(x) for x in augmentations["bboxes"]]
-        category_ids = augmentations["labels"]
+        boxes = [tensor(x) for x in augmentations["bboxes"]]
+        labels= augmentations["labels"]
 
         target = build_yolo_target(
             return_shape=self.return_shape,
-            bboxes=bboxes,
-            label_ids=category_ids,
+            bboxes=boxes,
+            label_ids=labels,
             normalized_anchors=self.normalized_anchors,
             scales=self.scales,
             img_width=image.shape[-1],

@@ -6,7 +6,6 @@ import torchvision.transforms as transforms
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from torchmetrics.detection import MeanAveragePrecision
 
 from PIL import Image
 
