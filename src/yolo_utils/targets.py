@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 from torch.nn import Sigmoid
 
-from ..yolo_utils.utils import iou
+from ..yolo_utils.utils import iou, nms
 
 def build_yolo_target(return_shape: tuple[tuple, ...],
                       bboxes: list[torch.Tensor] | torch.Tensor, 
@@ -90,7 +90,8 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                       img_height: int,
                       normalized_anchors: Tensor,
                       scales: list[int],
-                      p_thresh: float | None = None,
+                      score_thresh: float | None = None,
+                      iou_thresh: float | None = None,
                       is_pred: bool = True):
     """ Decode a yolo prediction tuple or a yolo target into a dictionary
     with keys boxes, labels and scores. The scores key will be ignored in the
@@ -103,7 +104,7 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
     labels: list[int] = []
     scores: list[float] = []
 
-    decoded_output = {
+    decoded_tuple = {
         "boxes": boxes, 
         "labels": labels, 
         "scores": scores, 
@@ -119,7 +120,7 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
         
         if is_pred:
             dims_where: list[tuple[torch.Tensor, ...]] = list(
-                zip(*torch.where(t[..., 0:1] >= p_thresh)[:-1])
+                zip(*torch.where(t[..., 0:1] >= score_thresh)[:-1])
             )
         else:
             dims_where: list[tuple[torch.Tensor, ...]] = list(
@@ -143,11 +144,11 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                 w = torch.exp(w) * scaled_ancs[anc_id][0] * scale
                 h = torch.exp(h) * scaled_ancs[anc_id][1] * scale
 
-                decoded_output['boxes'].append(
+                decoded_tuple['boxes'].append(
                     [x.item(), y.item(), w.item(), h.item()]
                 )
-                decoded_output['labels'].append(int(label_id.item()))
-                decoded_output['scores'].append(p.item())
+                decoded_tuple['labels'].append(int(label_id.item()))
+                decoded_tuple['scores'].append(p.item())
 
             else:
                 anc_id, row, col = dim
@@ -159,22 +160,27 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
 
                 bbox = [x.item(), y.item(), w.item(), h.item()]
                 
-                if not bbox in decoded_output['boxes']:
-                    decoded_output['boxes'].append(
+                if not bbox in decoded_tuple['boxes']:
+                    decoded_tuple['boxes'].append(
                         [x.item(), y.item(), w.item(), h.item()]
                     )
-                    decoded_output['labels'].append(int(label_id.item()))
-                    decoded_output['scores'].append(p.item())
+                    decoded_tuple['labels'].append(int(label_id.item()))
+                    decoded_tuple['scores'].append(p.item())
 
-    for k in decoded_output.keys():
-        decoded_output[k] = torch.tensor(decoded_output[k])
+    for k in decoded_tuple.keys():
+        decoded_tuple[k] = torch.tensor(decoded_tuple[k])
 
-    ranked_inds = decoded_output['scores'].argsort(descending=True)
+    ranked_inds = decoded_tuple['scores'].argsort(descending=True)
 
-    for k in decoded_output.keys():
-        decoded_output[k] = decoded_output[k][ranked_inds]
+    for k in decoded_tuple.keys():
+        decoded_tuple[k] = decoded_tuple[k][ranked_inds]
 
-    return decoded_output
+    if is_pred:
+        nms_idxs = nms(decoded_tuple["boxes"], iou_thresh)
+        for k in decoded_tuple.keys():
+            decoded_tuple[k] = decoded_tuple[k][nms_idxs]
+
+    return decoded_tuple
 
 
 if __name__ == "__main__":

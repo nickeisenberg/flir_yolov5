@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw
 from PIL.ImageFont import ImageFont
 import matplotlib.pyplot as plt
 import torch
+from torch import Tensor
 from torchvision.transforms import transforms
 import os
 
@@ -73,11 +74,11 @@ def view_boxes(img: str | Image.Image, boxes: list, show=True):
 
 
 def view_pred_vs_actual(img: Image.Image, 
-                        boxes: list, 
-                        scores: list, 
-                        labels: list,
-                        boxes_actual: list, 
-                        labels_actual: list,
+                        boxes: Tensor, 
+                        scores: Tensor, 
+                        labels: Tensor,
+                        boxes_actual: Tensor, 
+                        labels_actual: Tensor,
                         figsize=(12, 6),
                         show=True):
     # Ensure img is a PIL Image
@@ -92,7 +93,7 @@ def view_pred_vs_actual(img: Image.Image,
     
     # Draw predicted boxes, scores, and labels
     for bbox, score, label in zip(boxes, scores, labels):
-        x0, y0, w, h = bbox
+        x0, y0, w, h = bbox.tolist()
         draw_pred.rectangle((x0, y0, x0 + w, y0 + h), outline="red", width=3)
     
     # Create another copy of the original image for actual boxes
@@ -103,7 +104,7 @@ def view_pred_vs_actual(img: Image.Image,
     
     # Draw actual boxes and labels
     for bbox, label in zip(boxes_actual, labels_actual):
-        x0, y0, w, h = bbox
+        x0, y0, w, h = bbox.tolist()
         draw_actual.rectangle((x0, y0, x0 + w, y0 + h), outline="green", width=3)
     
     # Display the images side by side

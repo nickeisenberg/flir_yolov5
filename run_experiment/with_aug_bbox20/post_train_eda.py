@@ -8,8 +8,7 @@ import matplotlib.pyplot as plt
 
 from PIL import Image
 
-from src.yolo_utils.targets import decode_yolo_output
-from src.yolo_utils.utils import nms, iou
+from src.yolo_utils.targets import decode_yolo_tuple
 from src.yolo_utils.box_viewers import (
     view_pred_vs_actual,
 )
@@ -54,25 +53,36 @@ img, target = vdataset[600]
 # img, target = vdataset[701]
 img = img.unsqueeze(0)
 prediction = yolov5(img)
-decoded_prediction = decode_yolo_output(
-    prediction, img_width, img_height, .95, anchors, scales, True
+
+decoded_prediction = decode_yolo_tuple(
+    yolo_tuple=prediction, 
+    img_width=img_width, 
+    img_height=img_height, 
+    normalized_anchors=anchors, 
+    scales=scales, 
+    score_thresh=.95,
+    iou_thresh=.3,
+    is_pred=True
 )
-pred_box_idxs = nms(decoded_prediction["bboxes"], .3)
-pred_boxes = decoded_prediction["bboxes"][pred_box_idxs]
-pred_labels = decoded_prediction["category_ids"][pred_box_idxs].tolist()
-pred_scores = decoded_prediction["scores"][pred_box_idxs]
-actual = decode_yolo_output(
-    tuple(target), img_width, img_height, .3, anchors, scales, False
+
+actual = decode_yolo_tuple(
+    yolo_tuple=tuple(target), 
+    img_width=img_width, 
+    img_height=img_height, 
+    normalized_anchors=anchors, 
+    scales=scales, 
+    is_pred=False
 )
-actual_boxes = actual["bboxes"]
-actual_labels = actual["category_ids"].tolist()
+
 pil_img: Image.Image = transforms.ToPILImage()(img[0])
+
 view_pred_vs_actual(
-    pil_img, boxes=pred_boxes.tolist(), 
-    scores=pred_scores.tolist(), 
-    labels=pred_labels, 
-    boxes_actual=actual_boxes.tolist(), 
-    labels_actual=actual_labels
+    pil_img, 
+    boxes=decoded_prediction["boxes"], 
+    scores=decoded_prediction["scores"], 
+    labels=decoded_prediction["labels"], 
+    boxes_actual=actual["boxes"], 
+    labels_actual=actual["labels"]
 )
 
 
