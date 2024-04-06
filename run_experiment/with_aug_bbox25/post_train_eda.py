@@ -51,6 +51,7 @@ yolov5.load_state_dict(sd["MODEL_STATE"])
 # img, target = vdataset[118]
 # img, target = vdataset[600]
 img, target = vdataset[706]
+# img, target = vdataset[213]
 img = img.unsqueeze(0)
 prediction = yolov5(img)
 decoded_prediction = decode_yolo_output(
