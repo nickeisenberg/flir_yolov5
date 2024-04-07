@@ -65,6 +65,7 @@ class TrainModule(Module):
                 self.load_checkpoint()
 
         if loss_log_root is not None:
+            self.loss_log_root = loss_log_root
             self.logger = CSVLogger(self.loss_log_root)
 
         self.epochs_run = 0
