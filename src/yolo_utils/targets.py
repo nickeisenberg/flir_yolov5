@@ -92,7 +92,7 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                       scales: list[int],
                       score_thresh: float | None = None,
                       iou_thresh: float | None = None,
-                      is_pred: bool = True):
+                      is_pred: bool = True) -> list[dict[str, Tensor]]:
     """ Decode a yolo prediction tuple or a yolo target into a dictionary
     with keys boxes, labels and scores. The scores key will be ignored in the
     case that the yolo tuple is a target
@@ -100,19 +100,27 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
 
     sigmoid = Sigmoid()
 
-    boxes: list[list[float]] = []
-    labels: list[int] = []
-    scores: list[float] = []
-
-    decoded_tuple = {
-        "boxes": boxes, 
-        "labels": labels, 
-        "scores": scores, 
-    }
+    _boxes: list[list[float]] = []
+    _labels: list[int] = []
+    _scores: list[float] = []
+    
+    if is_pred:
+        decoded_image = {
+            "boxes": _boxes, 
+            "labels": _labels, 
+            "scores": _scores, 
+        }
+    else:
+        decoded_image = {
+            "boxes": _boxes, 
+            "labels": _labels, 
+        }
 
     batch_size = yolo_tuple[0].size(0)
     for scale_pred in yolo_tuple:
         assert scale_pred.size(0) == batch_size
+
+    decoded_all_images = [decoded_image for _ in range(batch_size)]
 
     for scale_id, t in enumerate(yolo_tuple):
 
@@ -148,11 +156,13 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                 w = torch.exp(w) * scaled_ancs[anc_id][0] * scale
                 h = torch.exp(h) * scaled_ancs[anc_id][1] * scale
 
-                decoded_tuple['boxes'].append(
-                    [x.item(), y.item(), w.item(), h.item()]
-                )
-                decoded_tuple['labels'].append(int(label_id.item()))
-                decoded_tuple['scores'].append(p.item())
+                bbox = [x.item(), y.item(), w.item(), h.item()]
+                label = int(label_id.item())
+                score = p.item()
+
+                decoded_all_images[batch_id]["boxes"].append(bbox)
+                decoded_all_images[batch_id]["labels"].append(label)
+                decoded_all_images[batch_id]["scores"].append(score)
 
             else:
                 batch_id, anc_id, row, col = dim
@@ -163,28 +173,30 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                 h = h * scale
 
                 bbox = [x.item(), y.item(), w.item(), h.item()]
+                label = int(label_id.item())
                 
-                if not bbox in decoded_tuple['boxes']:
-                    decoded_tuple['boxes'].append(
-                        [x.item(), y.item(), w.item(), h.item()]
-                    )
-                    decoded_tuple['labels'].append(int(label_id.item()))
-                    decoded_tuple['scores'].append(p.item())
+                if not bbox in decoded_all_images[batch_id]['boxes']:
+                    decoded_all_images[batch_id]["boxes"].append(bbox)
+                    decoded_all_images[batch_id]["labels"].append(label)
 
-    for k in decoded_tuple.keys():
-        decoded_tuple[k] = torch.tensor(decoded_tuple[k])
-
-    ranked_inds = decoded_tuple['scores'].argsort(descending=True)
-
-    for k in decoded_tuple.keys():
-        decoded_tuple[k] = decoded_tuple[k][ranked_inds]
+    for decoded_image in decoded_all_images:
+        for key in decoded_image.keys():
+            decoded_image[key] = torch.tensor(decoded_image[key])
 
     if is_pred:
-        nms_idxs = nms(decoded_tuple["boxes"], iou_thresh)
-        for k in decoded_tuple.keys():
-            decoded_tuple[k] = decoded_tuple[k][nms_idxs]
+        for decoded_image in decoded_all_images:
+            ranked_inds = decoded_image['scores'].argsort(descending=True)
+            decoded_image["boxes"] = decoded_image["boxes"][ranked_inds]
+            nms_inds = nms(decoded_image["boxes"], iou_thresh)
+            decoded_image["boxes"] = decoded_image["boxes"][nms_inds]
 
-    return decoded_tuple
+            for k in decoded_image.keys():
+                if k == "boxes":
+                    continue
+                decoded_image[k] = decoded_image[k][ranked_inds]
+                decoded_image[k] = decoded_image[k][nms_inds]
+
+    return decoded_all_images
 
 
 if __name__ == "__main__":

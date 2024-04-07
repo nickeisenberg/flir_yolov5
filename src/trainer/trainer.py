@@ -1,6 +1,7 @@
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from typing import Callable
+from typing import Any, Callable
+from torchmetrics.metric import Metric
 from tqdm import tqdm
 
 
@@ -28,18 +29,41 @@ class Trainer:
 
         epochs_run = self.train_module.epochs_run
         for epoch in range(epochs_run + 1, num_epochs + 1):
-            self.epoch_pass("train", epoch, train_loader, device, unpacker)
+            self.epoch_pass(which="train", 
+                            epoch=epoch, 
+                            loader=train_loader, 
+                            device=device, 
+                            unpacker=unpacker)
             self.train_module.logger.log_epoch("train")
              
             if self.train_module.logger.save_checkpoint_flag("train"):
                 self.train_module.save_checkpoint("train", epoch)
 
             if val_loader is not None:
-                self.epoch_pass("val", epoch, val_loader, device, unpacker)
+                self.epoch_pass(which="val",
+                                epoch=epoch,
+                                loader=val_loader,
+                                device=device,
+                                unpacker=unpacker)
                 self.train_module.logger.log_epoch("val")
 
                 if self.train_module.logger.save_checkpoint_flag("val"):
                     self.train_module.save_checkpoint("val", epoch)
+
+
+    def evaluate(self,
+                 metric: Any,
+                 loader: DataLoader,
+                 device: str | int,
+                 unpacker: Callable | None = None):
+
+        if not unpacker:
+            unpacker = default_unpacker
+        else:
+            unpacker = unpacker
+
+        self.epoch_pass(which="eval", epoch=0, device=device, loader=loader, 
+                        unpacker=unpacker, metric=metric)
 
 
     def epoch_pass(self, 
@@ -47,7 +71,8 @@ class Trainer:
                    epoch: int,
                    loader: DataLoader, 
                    device: str | int, 
-                   unpacker: Callable):
+                   unpacker: Callable,
+                   **kwargs):
 
         pbar = tqdm(loader)
 
@@ -69,5 +94,13 @@ class Trainer:
                     None, 
                     True, 
                     EPOCH=epoch,
+                    **self.train_module.logger._avg_epoch_history
+                )
+
+            elif which == "eval":
+                self.train_module.eval_batch_pass(*data)
+                pbar.set_postfix(
+                    None, 
+                    True, 
                     **self.train_module.logger._avg_epoch_history
                 )

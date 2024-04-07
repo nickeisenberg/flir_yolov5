@@ -6,6 +6,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 import pandas as pd
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from torchmetrics.detection import MeanAveragePrecision
 
@@ -49,15 +50,16 @@ sd = torch.load(
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
 
-dataloader = DataLoader(vdataset, 16)
+dataloader = DataLoader(vdataset, 16, shuffle=True)
 map = MeanAveragePrecision(box_format='xywh')
 
 yolov5.eval()
 with torch.no_grad():
-    for batch in dataloader:
+    for i, batch in enumerate(dataloader):
+        print(i)
         inputs, targets = yolo_unpacker(batch, "cpu")
         predictions = yolov5(inputs)
-        decoded_prediction = decode_yolo_tuple(
+        decoded_predictions = decode_yolo_tuple(
             yolo_tuple=predictions, 
             img_width=img_width, 
             img_height=img_height, 
@@ -67,7 +69,7 @@ with torch.no_grad():
             iou_thresh=.3,
             is_pred=True
         )
-        actual = decode_yolo_tuple(
+        decoded_targets = decode_yolo_tuple(
             yolo_tuple=targets, 
             img_width=img_width, 
             img_height=img_height, 
@@ -75,8 +77,12 @@ with torch.no_grad():
             scales=scales, 
             is_pred=False
         )
-        map.update(preds=[predictions], target=[actual])
-        break
+        map.update(preds=decoded_predictions, target=decoded_targets)
+        if i == 10:
+            break
+
+map.compute()
+
 
 
 
@@ -87,7 +93,9 @@ with torch.no_grad():
 img, target = vdataset[600]
 # img, target = vdataset[701]
 img = img.unsqueeze(0)
+target = tuple([t.unsqueeze(0) for t in target])
 prediction = yolov5(img)
+
 
 decoded_prediction = decode_yolo_tuple(
     yolo_tuple=prediction, 
@@ -113,13 +121,12 @@ pil_img: Image.Image = transforms.ToPILImage()(img[0])
 
 view_pred_vs_actual(
     pil_img, 
-    boxes=decoded_prediction["boxes"], 
-    scores=decoded_prediction["scores"], 
-    labels=decoded_prediction["labels"], 
-    boxes_actual=actual["boxes"], 
-    labels_actual=actual["labels"]
+    boxes=decoded_prediction[0]["boxes"], 
+    scores=decoded_prediction[0]["scores"], 
+    labels=decoded_prediction[0]["labels"], 
+    boxes_actual=actual[0]["boxes"], 
+    labels_actual=actual[0]["labels"]
 )
-
 
 loss_df = pd.read_csv(os.path.join(loss_log_root, "train_log.csv"))
 loss_df["batch"] = loss_df.index // (272 * 3)

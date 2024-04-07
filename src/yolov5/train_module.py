@@ -1,13 +1,16 @@
 import os
-from typing import cast
+from typing import Any, cast
 from torch.nn import Module
 from torch import float32, no_grad, Tensor, tensor, vstack, save, load
 from torch.optim import Adam
 from torch.nn import DataParallel
+from torchmetrics.detection import MeanAveragePrecision
+from torchmetrics.metric import Metric
 
 from src.trainer.logger import CSVLogger
 from src.yolov5.yolov5 import YOLOv5
 from src.yolo_utils.loss import YOLOLoss
+from src.yolo_utils.targets import decode_yolo_tuple
 
 
 class TrainModule(Module):
@@ -112,6 +115,39 @@ class TrainModule(Module):
             scaled_anchors = self.scaled_anchors[3 * scale_id: 3 * (scale_id + 1)]
             _, batch_history = self.loss_fn(output, target, scaled_anchors)
             self.logger.log_batch(batch_history)
+
+
+    def eval_batch_pass(self, *args, metric: MeanAveragePrecision):
+        self.model.eval()
+
+        inputs, targets = args
+
+        assert type(inputs) == Tensor
+        targets = cast(tuple[Tensor, ...], targets)
+        
+        with no_grad():
+            predictions = self.model(inputs)
+            decoded_predictions = decode_yolo_tuple(
+                yolo_tuple=predictions, 
+                img_width=self.img_width, 
+                img_height=self.img_height, 
+                normalized_anchors=self.normalized_anchors, 
+                scales=self.scales, 
+                score_thresh=.95,
+                iou_thresh=.3,
+                is_pred=True
+            )
+            decoded_targets = decode_yolo_tuple(
+                yolo_tuple=targets, 
+                img_width=self.img_width, 
+                img_height=self.img_height, 
+                normalized_anchors=self.anchors, 
+                scales=self.scales, 
+                is_pred=False
+            )
+
+            metric.update(preds=decoded_predictions, target=decoded_targets)
+            self.logger.log_batch(metric.compute())
 
 
     def save_checkpoint(self, which, epoch, save_to: str | None = None):
