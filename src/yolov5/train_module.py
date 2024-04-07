@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from src.trainer.logger import CSVLogger
 from src.yolov5.yolov5 import YOLOv5
-from src.yolo_utils.loss import YOLOLoss
+from src.yolo_utils.loss import YOLOLoss, YOLOLoss2
 from src.yolo_utils.targets import decode_yolo_tuple
 
 
@@ -41,7 +41,8 @@ class TrainModule(Module):
         else:
             raise Exception("wrong model initialization")
 
-        self.loss_fn = YOLOLoss()
+        # self.loss_fn = YOLOLoss()
+        self.loss_fn = YOLOLoss2()
         self.optimizer = Adam(self.model.parameters(), lr=.0001)
         
         self.img_width, self.img_height = img_width, img_height
