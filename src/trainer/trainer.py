@@ -51,28 +51,12 @@ class Trainer:
                     self.train_module.save_checkpoint("val", epoch)
 
 
-    def evaluate(self,
-                 metric: Any,
-                 loader: DataLoader,
-                 device: str | int,
-                 unpacker: Callable | None = None):
-
-        if not unpacker:
-            unpacker = default_unpacker
-        else:
-            unpacker = unpacker
-
-        self.epoch_pass(which="eval", epoch=0, device=device, loader=loader, 
-                        unpacker=unpacker, metric=metric)
-
-
     def epoch_pass(self, 
                    which: str,
                    epoch: int,
                    loader: DataLoader, 
                    device: str | int, 
-                   unpacker: Callable,
-                   **kwargs):
+                   unpacker: Callable):
 
         pbar = tqdm(loader)
 
@@ -94,13 +78,5 @@ class Trainer:
                     None, 
                     True, 
                     EPOCH=epoch,
-                    **self.train_module.logger._avg_epoch_history
-                )
-
-            elif which == "eval":
-                self.train_module.eval_batch_pass(*data)
-                pbar.set_postfix(
-                    None, 
-                    True, 
                     **self.train_module.logger._avg_epoch_history
                 )

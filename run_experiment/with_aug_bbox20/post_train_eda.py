@@ -96,6 +96,7 @@ img = img.unsqueeze(0)
 target = tuple([t.unsqueeze(0) for t in target])
 prediction = yolov5(img)
 
+map = MeanAveragePrecision(box_format='xywh')
 
 decoded_prediction = decode_yolo_tuple(
     yolo_tuple=prediction, 

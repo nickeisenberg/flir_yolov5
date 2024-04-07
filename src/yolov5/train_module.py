@@ -1,11 +1,13 @@
 import os
-from typing import Any, cast
+from typing import Any, Callable, cast
 from torch.nn import Module
 from torch import float32, no_grad, Tensor, tensor, vstack, save, load
 from torch.optim import Adam
 from torch.nn import DataParallel
+from torch.utils.data import DataLoader
 from torchmetrics.detection import MeanAveragePrecision
 from torchmetrics.metric import Metric
+from tqdm import tqdm
 
 from src.trainer.logger import CSVLogger
 from src.yolov5.yolov5 import YOLOv5
@@ -59,6 +61,7 @@ class TrainModule(Module):
 
         self.loss_log_root, self.state_dict_root = loss_log_root, state_dict_root
         self.logger = CSVLogger(self.loss_log_root)
+
 
         self.epochs_run = 0
         if os.path.isfile(os.path.join(self.state_dict_root, "train_ckp.pth")):
@@ -117,38 +120,52 @@ class TrainModule(Module):
             self.logger.log_batch(batch_history)
 
 
-    def eval_batch_pass(self, *args, metric: MeanAveragePrecision):
+    def evaluate(self,
+                 loader: DataLoader, 
+                 unpacker: Callable):
+
         self.model.eval()
 
-        inputs, targets = args
+        map = MeanAveragePrecision(
+            box_format='xywh', warn_on_many_detections=False
+        )
+        map.warn_on_many_detections = False
 
-        assert type(inputs) == Tensor
-        targets = cast(tuple[Tensor, ...], targets)
-        
-        with no_grad():
-            predictions = self.model(inputs)
-            decoded_predictions = decode_yolo_tuple(
-                yolo_tuple=predictions, 
-                img_width=self.img_width, 
-                img_height=self.img_height, 
-                normalized_anchors=self.normalized_anchors, 
-                scales=self.scales, 
-                score_thresh=.95,
-                iou_thresh=.3,
-                is_pred=True
+        pbar = tqdm(loader)
+        for data in pbar:
+            inputs, targets = unpacker(data, self.device)
+
+            assert type(inputs) == Tensor
+            targets = cast(tuple[Tensor, ...], targets)
+            
+            with no_grad():
+                predictions = self.model(inputs)
+                decoded_predictions = decode_yolo_tuple(
+                    yolo_tuple=predictions, 
+                    img_width=self.img_width, 
+                    img_height=self.img_height, 
+                    normalized_anchors=self.normalized_anchors, 
+                    scales=self.scales, 
+                    score_thresh=.95,
+                    iou_thresh=.3,
+                    is_pred=True
+                )
+                decoded_targets = decode_yolo_tuple(
+                    yolo_tuple=targets, 
+                    img_width=self.img_width, 
+                    img_height=self.img_height, 
+                    normalized_anchors=self.anchors, 
+                    scales=self.scales, 
+                    is_pred=False
+                )
+                map.update(preds=decoded_predictions, target=decoded_targets)
+
+            computes = map.compute()
+            pbar.set_postfix(
+                    map=computes["map"],
+                    map_50=computes["map_50"],
+                    map_75=computes["map_75"]
             )
-            decoded_targets = decode_yolo_tuple(
-                yolo_tuple=targets, 
-                img_width=self.img_width, 
-                img_height=self.img_height, 
-                normalized_anchors=self.anchors, 
-                scales=self.scales, 
-                is_pred=False
-            )
-
-            metric.update(preds=decoded_predictions, target=decoded_targets)
-            self.logger.log_batch(metric.compute())
-
 
     def save_checkpoint(self, which, epoch, save_to: str | None = None):
         checkpoint = {}
