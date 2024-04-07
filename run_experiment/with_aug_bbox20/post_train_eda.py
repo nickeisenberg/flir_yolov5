@@ -3,16 +3,11 @@ from sys import path
 path.append(os.path.expanduser("~/GitRepos/flir_yolov5"))
 import torch
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
 import pandas as pd
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-
-from torchmetrics.detection import MeanAveragePrecision
 
 from PIL import Image
 
-from src.yolo_utils.dataset import yolo_unpacker
 from src.yolo_utils.targets import decode_yolo_tuple
 from src.yolo_utils.box_viewers import (
     view_pred_vs_actual,
@@ -51,9 +46,9 @@ yolov5.load_state_dict(sd["MODEL_STATE"])
 
  #img, target = vdataset[225]
 # img, target = vdataset[45]
-# img, target = vdataset[105]
+img, target = vdataset[105]
 # img, target = vdataset[118]
-img, target = tdataset[600]
+# img, target = tdataset[600]
 # img, target = vdataset[701]
 img = img.unsqueeze(0)
 target = tuple([t.unsqueeze(0) for t in target])
