@@ -32,7 +32,7 @@ tcoco, vcoco = config_coco()
 ) = config_train_module_inputs(tcoco)
 
 _, vdataset = config_datasets(tcoco, vcoco, anchors, scales)
-
+vdataloader = DataLoader(vdataset, 1)
 
 #--------------------------------------------------
 
@@ -51,11 +51,10 @@ sd_path = os.path.expanduser(
 )
 train_module.load_checkpoint(sd_path)
 
-img, target = vdataset[701]
-img = img.unsqueeze(0)
-target = tuple([t.unsqueeze(0) for t in target])
-prediction = train_module.model(img)
+batch = next(iter(vdataloader))
+images, targets = yolo_unpacker(batch, "cpu")
 
+prediction = train_module.model(images)
 decoded_prediction = decode_yolo_tuple(
     yolo_tuple=prediction, 
     img_width=img_width, 
@@ -67,19 +66,21 @@ decoded_prediction = decode_yolo_tuple(
     is_pred=True
 )
 actual = decode_yolo_tuple(
-    yolo_tuple=target, 
+    yolo_tuple=targets, 
     img_width=img_width, 
     img_height=img_height, 
     normalized_anchors=anchors, 
     scales=scales, 
     is_pred=False
 )
-pil_img: Image.Image = transforms.ToPILImage()(img[0])
+
+idx = 0
+pil_img: Image.Image = transforms.ToPILImage()(images[idx])
 view_pred_vs_actual(
     pil_img, 
-    boxes=decoded_prediction[0]["boxes"], 
-    scores=decoded_prediction[0]["scores"], 
-    labels=decoded_prediction[0]["labels"], 
-    boxes_actual=actual[0]["boxes"], 
-    labels_actual=actual[0]["labels"]
+    boxes=decoded_prediction[idx]["boxes"], 
+    scores=decoded_prediction[idx]["scores"], 
+    labels=decoded_prediction[idx]["labels"], 
+    boxes_actual=actual[idx]["boxes"], 
+    labels_actual=actual[idx]["labels"]
 )

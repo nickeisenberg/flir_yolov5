@@ -1,3 +1,4 @@
+from typing import cast
 import torch
 from torch import Tensor
 from torch.nn import Sigmoid
@@ -100,24 +101,29 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
     """
 
     sigmoid = Sigmoid()
-    
-    if is_pred:
-        decoded_image = {
-            "boxes": [], 
-            "labels": [], 
-            "scores": [], 
-        }
-    else:
-        decoded_image = {
-            "boxes": [], 
-            "labels": [], 
-        }
 
     batch_size = yolo_tuple[0].size(0)
     for scale_pred in yolo_tuple:
         assert scale_pred.size(0) == batch_size
 
-    decoded_all_images = [decoded_image for _ in range(batch_size)]
+    _boxes: list[list[float]] = []
+    _labels: list[int] = [] 
+    _scores: list[float] = [] 
+
+    decoded_all_images = []
+    for _ in range(batch_size):
+        if is_pred:
+            decoded_image = {
+                "boxes": deepcopy(_boxes), 
+                "labels": deepcopy(_labels), 
+                "scores": deepcopy(_scores), 
+            }
+        else:
+            decoded_image = {
+                "boxes": deepcopy(_boxes), 
+                "labels": deepcopy(_labels), 
+            }
+        decoded_all_images.append(decoded_image)
 
     for scale_id, t in enumerate(yolo_tuple):
 
@@ -176,7 +182,7 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                 if not bbox in decoded_all_images[batch_id]['boxes']:
                     decoded_all_images[batch_id]["boxes"].append(bbox)
                     decoded_all_images[batch_id]["labels"].append(label)
-
+    
     for decoded_image in decoded_all_images:
         for key in decoded_image.keys():
             decoded_image[key] = torch.tensor(decoded_image[key])
@@ -185,6 +191,7 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
         for decoded_image in decoded_all_images:
             ranked_inds = decoded_image['scores'].argsort(descending=True)
             decoded_image["boxes"] = decoded_image["boxes"][ranked_inds]
+
             nms_inds = nms(decoded_image["boxes"], iou_thresh)
             decoded_image["boxes"] = decoded_image["boxes"][nms_inds]
 
@@ -195,53 +202,3 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                 decoded_image[k] = decoded_image[k][nms_inds]
 
     return decoded_all_images
-
-
-# if __name__ == "__main__":
-#     import os
-#     from sys import path
-#     path.append(f"{os.environ['HOME']}GitRepos/flir_yolov5")
-#     import json
-#     from src.yolo_utils.utils import make_yolo_anchors, scale_anchors, iou
-#     
-#     home = os.environ["HOME"]
-#     with open(f"{home}/Datasets/flir/images_thermal_train/coco.json", "r") as oj:
-#         coco = json.load(oj)
-#     
-#     anchors = make_yolo_anchors(coco, 640, 512, 9)
-#     
-#     return_shape = (
-#         (3, 16, 20, 6),
-#         (3, 32, 40, 6),
-#         (3, 64, 80, 6),
-#     )
-#     bboxes = [
-#         torch.tensor([100, 100, 50 ,50]),
-#         torch.tensor([200, 200, 40 ,40])
-#     ]
-#     label_ids = [1, 2]
-#     scales = [32, 16, 8]
-#     img_width = 640
-#     img_height = 512
-#     
-#     
-#     target = build_yolo_target(
-#         return_shape, bboxes, label_ids, anchors, scales, img_width, img_height
-#     )
-#     
-#     batched_target = tuple([t.unsqueeze(0) for t in target])
-# 
-#     for t in target:
-#         dims: list[tuple[torch.Tensor, ...]] = list(
-#             zip(*torch.where(t[..., 0:1] >= .8)[:-1])
-#         )
-#         for dim in dims:
-#             print(t[dim])
-#             break
-#         break
-#     
-#     decoded = decode_yolo_output(target, img_width, img_height, .8, anchors, scales, False)
-#     decoded["boxes"]
-#     
-#     decoded = decode_yolo_output(batched_target, img_width, img_height, .8, anchors, scales, True)
-#     decoded["boxes"]
