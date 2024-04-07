@@ -123,11 +123,11 @@ def view_pred_vs_actual(img: Image.Image,
         return fig
 
 
-if __name__ == "__main__":
-    home = os.environ["HOME"]
-    root = f"{home}/Datasets/flir/images_thermal_train"
-    with open(os.path.join(root, "coco.json"), "r") as oj:
-        coco = json.load(oj)
-    
-    view_boxes_from_coco_image_id(coco, 11, root)
+# if __name__ == "__main__":
+#     home = os.environ["HOME"]
+#     root = f"{home}/Datasets/flir/images_thermal_train"
+#     with open(os.path.join(root, "coco.json"), "r") as oj:
+#         coco = json.load(oj)
+#     
+#     view_boxes_from_coco_image_id(coco, 11, root)
     

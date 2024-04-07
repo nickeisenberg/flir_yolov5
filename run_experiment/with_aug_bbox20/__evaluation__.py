@@ -1,6 +1,7 @@
 import os
 from sys import path
 import torch
+from copy import deepcopy
 
 from torch.utils.data import DataLoader
 path.append(os.path.expanduser("~/GitRepos/flir_yolov5"))
@@ -12,7 +13,7 @@ from src.yolov5.yolov5 import YOLOv5
 from src.yolo_utils.targets import decode_yolo_tuple
 from src.yolo_utils.box_viewers import view_pred_vs_actual 
 from src.yolo_utils.dataset import yolo_unpacker
-from src.yolov5.train_module import TrainModule
+from src.yolov5.train_module import TrainModule, TrainModule2
 from run_experiment.with_aug_bbox20.config import (
     config_coco,
     config_datasets,
@@ -34,12 +35,16 @@ tcoco, vcoco = config_coco()
 
 _, vdataset = config_datasets(tcoco, vcoco, anchors, scales)
 
-vdataset.data = {idx: vdataset.data[idx] for idx in range(48)}
+sd_path = os.path.expanduser(
+    "~/GitRepos/flir_yolov5/run_experiment/with_aug_bbox20/state_dicts/val_ckp.pth"
+)
+sd = torch.load(sd_path, map_location="cpu")["MODEL_STATE"]
 
-vdataloader = DataLoader(vdataset, 24)
+yolo = YOLOv5(in_channels, num_classes)
+yolo.load_state_dict(sd)
 
-train_module = TrainModule(
-    yolo=YOLOv5(in_channels, num_classes),
+train_module = TrainModule2(
+    yolo=yolo,
     device="cpu",
     img_width=img_width, 
     img_height=img_height, 
@@ -47,20 +52,11 @@ train_module = TrainModule(
     scales=scales,
 )
 
-sd = os.path.expanduser(
-    "~/GitRepos/flir_yolov5/run_experiment/with_aug_bbox20/state_dicts/val_ckp.pth"
-)
-
-train_module.load_checkpoint(sd)
-
-train_module.model.load_state_dict(torch.load(sd)["MODEL_STATE"])
-
-map = train_module.evaluate(vdataloader, yolo_unpacker)
-
 img, target = vdataset[701]
 img = img.unsqueeze(0)
 target = tuple([t.unsqueeze(0) for t in target])
-prediction = train_module.model(img)
+# prediction = train_module.model(img)
+prediction = yolo(img)
 
 decoded_prediction = decode_yolo_tuple(
     yolo_tuple=prediction, 
@@ -73,7 +69,7 @@ decoded_prediction = decode_yolo_tuple(
     is_pred=True
 )
 actual = decode_yolo_tuple(
-    yolo_tuple=tuple(target), 
+    yolo_tuple=target, 
     img_width=img_width, 
     img_height=img_height, 
     normalized_anchors=anchors, 
@@ -89,11 +85,3 @@ view_pred_vs_actual(
     boxes_actual=actual[0]["boxes"], 
     labels_actual=actual[0]["labels"]
 )
-
-
-
-
-
-
-
-

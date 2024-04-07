@@ -1,12 +1,11 @@
 import os
-from typing import Any, Callable, cast
+from typing import Callable, cast
 from torch.nn import Module
 from torch import float32, no_grad, Tensor, tensor, vstack, save, load
 from torch.optim import Adam
 from torch.nn import DataParallel
 from torch.utils.data import DataLoader
 from torchmetrics.detection import MeanAveragePrecision
-from torchmetrics.metric import Metric
 from tqdm import tqdm
 
 from src.trainer.logger import CSVLogger
