@@ -128,7 +128,7 @@ class TrainModule(Module):
         self.model.eval()
 
         map = MeanAveragePrecision(
-            box_format='xywh', warn_on_many_detections=False
+            box_format='xywh'
         )
         map.warn_on_many_detections = False
 
@@ -155,7 +155,7 @@ class TrainModule(Module):
                     yolo_tuple=targets, 
                     img_width=self.img_width, 
                     img_height=self.img_height, 
-                    normalized_anchors=self.anchors, 
+                    normalized_anchors=self.normalized_anchors, 
                     scales=self.scales, 
                     is_pred=False
                 )
@@ -167,6 +167,8 @@ class TrainModule(Module):
                     map_50=computes["map_50"],
                     map_75=computes["map_75"]
             )
+
+        return map
 
     def save_checkpoint(self, which, epoch, save_to: str | None = None):
         checkpoint = {}

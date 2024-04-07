@@ -49,10 +49,65 @@ sd = torch.load(
 
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
+ #img, target = vdataset[225]
+# img, target = vdataset[45]
+# img, target = vdataset[105]
+# img, target = vdataset[118]
+img, target = vdataset[600]
+# img, target = vdataset[701]
+img = img.unsqueeze(0)
+target = tuple([t.unsqueeze(0) for t in target])
+prediction = yolov5(img)
+
+decoded_prediction = decode_yolo_tuple(
+    yolo_tuple=prediction, 
+    img_width=img_width, 
+    img_height=img_height, 
+    normalized_anchors=anchors, 
+    scales=scales, 
+    score_thresh=.95,
+    iou_thresh=.3,
+    is_pred=True
+)
+actual = decode_yolo_tuple(
+    yolo_tuple=tuple(target), 
+    img_width=img_width, 
+    img_height=img_height, 
+    normalized_anchors=anchors, 
+    scales=scales, 
+    is_pred=False
+)
+pil_img: Image.Image = transforms.ToPILImage()(img[0])
+view_pred_vs_actual(
+    pil_img, 
+    boxes=decoded_prediction[0]["boxes"], 
+    scores=decoded_prediction[0]["scores"], 
+    labels=decoded_prediction[0]["labels"], 
+    boxes_actual=actual[0]["boxes"], 
+    labels_actual=actual[0]["labels"]
+)
+
+loss_df = pd.read_csv(os.path.join(loss_log_root, "train_log.csv"))
+loss_df["batch"] = loss_df.index // (272 * 3)
+loss_df = loss_df.groupby("batch").mean()
+loss_df.plot()
+plt.show()
+
+loss_df = pd.read_csv(os.path.join(loss_log_root, "val_log.csv"))
+loss_df["batch"] = loss_df.index // (30 * 3)
+loss_df = loss_df.groupby("batch").mean()
+loss_df.plot()
+plt.show()
+
+
+
+
+
+
+
 
 dataloader = DataLoader(vdataset, 16, shuffle=True)
 map = MeanAveragePrecision(box_format='xywh')
-
 yolov5.eval()
 with torch.no_grad():
     for i, batch in enumerate(dataloader):
@@ -80,63 +135,7 @@ with torch.no_grad():
         map.update(preds=decoded_predictions, target=decoded_targets)
         if i == 10:
             break
-
 map.compute()
 
 
 
-
- #img, target = vdataset[225]
-# img, target = vdataset[45]
-# img, target = vdataset[105]
-# img, target = vdataset[118]
-img, target = vdataset[600]
-# img, target = vdataset[701]
-img = img.unsqueeze(0)
-target = tuple([t.unsqueeze(0) for t in target])
-prediction = yolov5(img)
-
-map = MeanAveragePrecision(box_format='xywh')
-
-decoded_prediction = decode_yolo_tuple(
-    yolo_tuple=prediction, 
-    img_width=img_width, 
-    img_height=img_height, 
-    normalized_anchors=anchors, 
-    scales=scales, 
-    score_thresh=.95,
-    iou_thresh=.3,
-    is_pred=True
-)
-
-actual = decode_yolo_tuple(
-    yolo_tuple=tuple(target), 
-    img_width=img_width, 
-    img_height=img_height, 
-    normalized_anchors=anchors, 
-    scales=scales, 
-    is_pred=False
-)
-
-pil_img: Image.Image = transforms.ToPILImage()(img[0])
-
-view_pred_vs_actual(
-    pil_img, 
-    boxes=decoded_prediction[0]["boxes"], 
-    scores=decoded_prediction[0]["scores"], 
-    labels=decoded_prediction[0]["labels"], 
-    boxes_actual=actual[0]["boxes"], 
-    labels_actual=actual[0]["labels"]
-)
-
-loss_df = pd.read_csv(os.path.join(loss_log_root, "train_log.csv"))
-loss_df["batch"] = loss_df.index // (272 * 3)
-loss_df = loss_df.groupby("batch").mean()
-loss_df.plot()
-plt.show()
-
-loss_df = pd.read_csv(os.path.join(loss_log_root, "val_log.csv"))
-loss_df["batch"] = loss_df.index // (30 * 3)
-loss_df = loss_df.groupby("batch").mean()
-loss_df.plot()
-plt.show()
