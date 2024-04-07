@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 from typing import Callable, cast
 from torch.nn import Module
@@ -49,7 +50,7 @@ class TrainModule(Module):
         
         _scaled_anchors = []
         for scale_id, scale in enumerate(self.scales):
-            scaled_anchors = self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)]
+            scaled_anchors = deepcopy(self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)].detach())
             scaled_anchors *= tensor(
                 [self.img_width / scale ,self.img_height / scale]
             )

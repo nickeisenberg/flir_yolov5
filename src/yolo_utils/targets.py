@@ -1,6 +1,7 @@
 import torch
 from torch import Tensor
 from torch.nn import Sigmoid
+from copy import deepcopy
 
 from ..yolo_utils.utils import iou, nms
 
@@ -99,21 +100,17 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
     """
 
     sigmoid = Sigmoid()
-
-    _boxes: list[list[float]] = []
-    _labels: list[int] = []
-    _scores: list[float] = []
     
     if is_pred:
         decoded_image = {
-            "boxes": _boxes, 
-            "labels": _labels, 
-            "scores": _scores, 
+            "boxes": [], 
+            "labels": [], 
+            "scores": [], 
         }
     else:
         decoded_image = {
-            "boxes": _boxes, 
-            "labels": _labels, 
+            "boxes": [], 
+            "labels": [], 
         }
 
     batch_size = yolo_tuple[0].size(0)
@@ -125,10 +122,9 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
     for scale_id, t in enumerate(yolo_tuple):
 
         scale = scales[scale_id]
-        scaled_ancs = normalized_anchors * torch.tensor(
+        scaled_ancs = normalized_anchors[3 * scale_id: 3 * (scale_id + 1)] * torch.tensor(
             [img_width / scale, img_height / scale]
         )
-        scaled_ancs = scaled_ancs[3 * scale_id: 3 * (scale_id + 1)]
         
         if is_pred:
             dims_where: list[tuple[torch.Tensor, ...]] = list(
@@ -143,7 +139,8 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
             if is_pred:
                 batch_id, anc_id, row, col = dim
 
-                bbox_info = t[dim][: 5]
+                bbox_info = deepcopy(t[dim][: 5].detach())
+
                 bbox_info[:3] = sigmoid(bbox_info[:3])
 
                 p, x, y, w, h = bbox_info
@@ -167,7 +164,8 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
             else:
                 batch_id, anc_id, row, col = dim
 
-                p, x, y, w, h, label_id = t[dim]
+                p, x, y, w, h, label_id = deepcopy(t[dim].detach())
+
                 x, y = (x + col.item()) * scale, (y + row.item()) * scale
                 w = w * scale
                 h = h * scale
