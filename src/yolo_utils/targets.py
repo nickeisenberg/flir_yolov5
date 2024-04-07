@@ -94,6 +94,7 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                       scales: list[int],
                       score_thresh: float | None = None,
                       nms_iou_thresh: float | None = None,
+                      min_box_dim: tuple[int, int] | None = None,
                       is_pred: bool = True) -> list[dict[str, Tensor]]:
     """ Decode a yolo prediction tuple or a yolo target into a dictionary
     with keys boxes, labels and scores. The scores key will be ignored in the
@@ -162,6 +163,10 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                 bbox = [x.item(), y.item(), w.item(), h.item()]
                 label = int(label_id.item())
                 score = p.item()
+
+                if min_box_dim is not None:
+                    if bbox[2] < min_box_dim[0] or bbox[3] < min_box_dim[1]:
+                        continue
 
                 decoded_all_images[batch_id]["boxes"].append(bbox)
                 decoded_all_images[batch_id]["labels"].append(label)

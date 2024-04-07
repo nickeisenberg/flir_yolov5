@@ -121,9 +121,12 @@ class TrainModule(Module):
             self.logger.log_batch(batch_history)
 
 
-    def evaluate(self,
-                 loader: DataLoader, 
-                 unpacker: Callable):
+    def map_evaluate(self,
+                     loader: DataLoader, 
+                     unpacker: Callable,
+                     min_box_dim: tuple[int, int],
+                     score_thresh=.95,
+                     nms_iou_thresh=.3):
 
         self.model.eval()
 
@@ -147,8 +150,9 @@ class TrainModule(Module):
                     img_height=self.img_height, 
                     normalized_anchors=self.normalized_anchors, 
                     scales=self.scales, 
-                    score_thresh=.95,
-                    nms_iou_thresh=.3,
+                    score_thresh=score_thresh,
+                    nms_iou_thresh=nms_iou_thresh,
+                    min_box_dim=min_box_dim,
                     is_pred=True
                 )
                 decoded_targets = decode_yolo_tuple(

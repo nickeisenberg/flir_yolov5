@@ -43,7 +43,7 @@ tdataset, vdataset = config_datasets(tcoco, vcoco, anchors, scales)
 yolov5 = YOLOv5(in_channels, num_classes)
 
 sd = torch.load(
-    os.path.join(state_dict_root, "val_ckp.pth"),
+    os.path.join(state_dict_root, "train_ckp.pth"),
     map_location="cpu"
 )
 
@@ -53,7 +53,7 @@ yolov5.load_state_dict(sd["MODEL_STATE"])
 # img, target = vdataset[45]
 # img, target = vdataset[105]
 # img, target = vdataset[118]
-img, target = vdataset[600]
+img, target = tdataset[600]
 # img, target = vdataset[701]
 img = img.unsqueeze(0)
 target = tuple([t.unsqueeze(0) for t in target])
@@ -66,7 +66,8 @@ decoded_prediction = decode_yolo_tuple(
     normalized_anchors=anchors, 
     scales=scales, 
     score_thresh=.95,
-    iou_thresh=.3,
+    nms_iou_thresh=.3,
+    min_box_dim=(20, 20),
     is_pred=True
 )
 actual = decode_yolo_tuple(
@@ -98,44 +99,3 @@ loss_df["batch"] = loss_df.index // (30 * 3)
 loss_df = loss_df.groupby("batch").mean()
 loss_df.plot()
 plt.show()
-
-
-
-
-
-
-
-
-dataloader = DataLoader(vdataset, 16, shuffle=True)
-map = MeanAveragePrecision(box_format='xywh')
-yolov5.eval()
-with torch.no_grad():
-    for i, batch in enumerate(dataloader):
-        print(i)
-        inputs, targets = yolo_unpacker(batch, "cpu")
-        predictions = yolov5(inputs)
-        decoded_predictions = decode_yolo_tuple(
-            yolo_tuple=predictions, 
-            img_width=img_width, 
-            img_height=img_height, 
-            normalized_anchors=anchors, 
-            scales=scales, 
-            score_thresh=.95,
-            iou_thresh=.3,
-            is_pred=True
-        )
-        decoded_targets = decode_yolo_tuple(
-            yolo_tuple=targets, 
-            img_width=img_width, 
-            img_height=img_height, 
-            normalized_anchors=anchors, 
-            scales=scales, 
-            is_pred=False
-        )
-        map.update(preds=decoded_predictions, target=decoded_targets)
-        if i == 10:
-            break
-map.compute()
-
-
-

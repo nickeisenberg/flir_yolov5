@@ -41,8 +41,13 @@ sd_path = os.path.expanduser(
 )
 train_module.load_checkpoint(sd_path)
 
-_, vdataset = config_datasets(tcoco, vcoco, anchors, scales)
+tdataset, vdataset = config_datasets(tcoco, vcoco, anchors, scales)
 
+tdataloader = DataLoader(tdataset, 64)
 vdataloader = DataLoader(vdataset, 64)
 
-map = train_module.evaluate(vdataloader ,yolo_unpacker)
+map = train_module.map_evaluate(
+    vdataloader,
+    yolo_unpacker,
+    min_box_dim=(20, 20)
+)
