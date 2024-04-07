@@ -23,8 +23,8 @@ class TrainModule(Module):
                  img_height: int,
                  normalized_anchors: Tensor,
                  scales: list[int],
-                 loss_log_root: str,
-                 state_dict_root: str):
+                 state_dict_root: str | None = None,
+                 loss_log_root: str | None = None):
         super().__init__()
 
         if isinstance(device, str):
@@ -40,7 +40,6 @@ class TrainModule(Module):
             self.model.to(self.device)
         else:
             raise Exception("wrong model initialization")
-
 
         self.loss_fn = YOLOLoss()
         self.optimizer = Adam(self.model.parameters(), lr=.0001)
@@ -58,14 +57,16 @@ class TrainModule(Module):
             _scaled_anchors.append(scaled_anchors)
 
         self.scaled_anchors = vstack(_scaled_anchors).to(float32)
+    
+        if state_dict_root is not None:
+            self.state_dict_root = state_dict_root
+            if os.path.isfile(os.path.join(self.state_dict_root, "train_ckp.pth")):
+                self.load_checkpoint()
 
-        self.loss_log_root, self.state_dict_root = loss_log_root, state_dict_root
-        self.logger = CSVLogger(self.loss_log_root)
-
+        if loss_log_root is not None:
+            self.logger = CSVLogger(self.loss_log_root)
 
         self.epochs_run = 0
-        if os.path.isfile(os.path.join(self.state_dict_root, "train_ckp.pth")):
-            self.load_checkpoint()
 
 
     def forward(self, x):
