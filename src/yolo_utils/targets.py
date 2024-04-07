@@ -93,7 +93,7 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
                       normalized_anchors: Tensor,
                       scales: list[int],
                       score_thresh: float | None = None,
-                      iou_thresh: float | None = None,
+                      nms_iou_thresh: float | None = None,
                       is_pred: bool = True) -> list[dict[str, Tensor]]:
     """ Decode a yolo prediction tuple or a yolo target into a dictionary
     with keys boxes, labels and scores. The scores key will be ignored in the
@@ -192,7 +192,7 @@ def decode_yolo_tuple(yolo_tuple: tuple[Tensor, ...],
             ranked_inds = decoded_image['scores'].argsort(descending=True)
             decoded_image["boxes"] = decoded_image["boxes"][ranked_inds]
 
-            nms_inds = nms(decoded_image["boxes"], iou_thresh)
+            nms_inds = nms(decoded_image["boxes"], nms_iou_thresh)
             decoded_image["boxes"] = decoded_image["boxes"][nms_inds]
 
             for k in decoded_image.keys():

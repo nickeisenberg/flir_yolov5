@@ -148,7 +148,7 @@ class TrainModule(Module):
                     normalized_anchors=self.normalized_anchors, 
                     scales=self.scales, 
                     score_thresh=.95,
-                    iou_thresh=.3,
+                    nms_iou_thresh=.3,
                     is_pred=True
                 )
                 decoded_targets = decode_yolo_tuple(
