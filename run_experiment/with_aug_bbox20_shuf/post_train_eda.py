@@ -39,7 +39,8 @@ sd = torch.load(
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
 
-img, target = vdataset[225]
+img, target = vdataset[3]
+# img, target = vdataset[225]
 # img, target = vdataset[45]
 # img, target = vdataset[105]
 # img, target = vdataset[118]
@@ -68,8 +69,6 @@ actual = decode_yolo_tuple(
     is_pred=False
 )
 pil_img: Image.Image = transforms.ToPILImage()(img[0])
-
-
 view_pred_vs_actual(
     pil_img, 
     boxes=decoded_prediction[0]["boxes"], 

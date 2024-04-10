@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from PIL import Image
 
-from src.yolo_utils.targets import decode_yolo_output
+from src.yolo_utils.targets import decode_yolo_tuple 
 from src.yolo_utils.utils import nms, iou
 from src.yolo_utils.box_viewers import (
     view_pred_vs_actual,
@@ -45,42 +45,46 @@ sd = torch.load(
 
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
+# img, target = vdataset[3]
 # img, target = vdataset[225]
 # img, target = vdataset[45]
-# img, target = vdataset[105]
+img, target = vdataset[105]
 # img, target = vdataset[118]
-# img, target = vdataset[600]
-# img, target = vdataset[706]
-img, target = vdataset[213]
+# img, target = tdataset[600]
+# img, target = vdataset[701]
 img = img.unsqueeze(0)
+target = tuple([t.unsqueeze(0) for t in target])
 prediction = yolov5(img)
-
-decoded_prediction = decode_yolo_output(
-    prediction, img_width, img_height, .95, anchors, scales, True
+decoded_prediction = decode_yolo_tuple(
+    yolo_tuple=prediction, 
+    img_width=img_width, 
+    img_height=img_height, 
+    normalized_anchors=anchors, 
+    scales=scales, 
+    score_thresh=.95,
+    nms_iou_thresh=.3,
+    min_box_dim=(20, 20),
+    is_pred=True
 )
-pred_box_idxs = nms(decoded_prediction["bboxes"], .3)
-pred_boxes = decoded_prediction["bboxes"][pred_box_idxs]
-pred_scores = decoded_prediction["category_ids"][pred_box_idxs]
-
-pred_labels = [str(x) for x in decoded_prediction["scores"][pred_box_idxs].tolist()]
-
-actual = decode_yolo_output(
-    tuple(target), img_width, img_height, .3, anchors, scales, False
+actual = decode_yolo_tuple(
+    yolo_tuple=tuple(target), 
+    img_width=img_width, 
+    img_height=img_height, 
+    normalized_anchors=anchors, 
+    scales=scales, 
+    is_pred=False
 )
-actual_boxes = actual["bboxes"]
-actual_labels = [str(x) for x in actual["category_ids"].tolist()]
 pil_img: Image.Image = transforms.ToPILImage()(img[0])
-
-
 view_pred_vs_actual(
-    pil_img, boxes=pred_boxes.tolist(), 
-    scores=pred_scores.tolist(), 
-    labels=pred_labels, 
-    boxes_actual=actual_boxes.tolist(), 
-    labels_actual=actual_labels
+    pil_img, 
+    boxes=decoded_prediction[0]["boxes"], 
+    scores=decoded_prediction[0]["scores"], 
+    labels=decoded_prediction[0]["labels"], 
+    boxes_actual=actual[0]["boxes"], 
+    labels_actual=actual[0]["labels"],
+    label_map={x["id"]: x["name"] for x in vcoco["categories"]}
 )
 
-decoded_prediction["category_ids"][pred_box_idxs]
 
 loss_df = pd.read_csv(os.path.join(loss_log_root, "train_log.csv"))
 loss_df["batch"] = loss_df.index // (272 * 3)
