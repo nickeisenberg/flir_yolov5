@@ -44,31 +44,35 @@ def view_boxes_from_coco_image_id(coco: str | dict,
         return fig
 
 
-def view_boxes(img: str | Image.Image, boxes: list, show=True):
+def view_preds(img: Image.Image, 
+               boxes: Tensor, 
+               scores: Tensor, 
+               labels: Tensor,
+               figsize=(12, 6),
+               show=True):
+    # Ensure img is a PIL Image
     if isinstance(img, str):
         img = Image.open(img)
     
-    if img.mode == 'L':
-        rgb_img = Image.new("RGB", img.size)
-        rgb_img.paste(img)
-        img = rgb_img
+    # Create a copy of the original image for predicted boxes
+    img_pred = deepcopy(img)
+    if img_pred.mode == 'L':
+        img_pred = img_pred.convert("RGB")
+    draw_pred = ImageDraw.Draw(img_pred)
     
-    draw = ImageDraw.Draw(img)
+    # Draw predicted boxes, scores, and labels
+    for bbox, score, label in zip(boxes, scores, labels):
+        x0, y0, w, h = bbox.tolist()
+        draw_pred.rectangle((x0, y0, x0 + w, y0 + h), outline="red", width=3)
     
-    for bbox in boxes:
-        x0, y0, w, h = bbox
-        x1, y1 = x0 + w, y0 + h
-        draw.rectangle((x0, y0, x1, y1), outline ="red")
-
-    transform = transforms.Compose([
-        transforms.PILToTensor()
-    ])
-    
-    fig = plt.imshow(torch.permute(transform(img), (1, 2, 0)))
+    # Display the images side by side
+    fig = plt.figure(figsize=figsize)
+    plt.imshow(img_pred)
+    plt.title('Predicted Boxes')
+    plt.axis('off')
 
     if show:
         plt.show()
-
     else:
         return fig
 

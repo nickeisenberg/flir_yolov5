@@ -5,7 +5,6 @@ import torch
 import torchvision.transforms as transforms
 import pandas as pd
 import matplotlib.pyplot as plt
-
 from PIL import Image
 
 from src.yolo_utils.targets import decode_yolo_tuple
@@ -13,7 +12,6 @@ from src.yolo_utils.box_viewers import (
     view_pred_vs_actual,
 )
 from src.yolov5.yolov5 import YOLOv5
-
 from run_experiment.with_aug_bbox20.config import (
     config_coco,
     config_datasets,
@@ -21,7 +19,6 @@ from run_experiment.with_aug_bbox20.config import (
 )
 
 tcoco, vcoco = config_coco()
-
 (
     in_channels, 
     num_classes, 
@@ -32,28 +29,23 @@ tcoco, vcoco = config_coco()
     loss_log_root,
     state_dict_root
 ) = config_train_module_inputs(tcoco)
-
 tdataset, vdataset = config_datasets(tcoco, vcoco, anchors, scales)
-
 yolov5 = YOLOv5(in_channels, num_classes)
-
 sd = torch.load(
-    os.path.join(state_dict_root, "train_ckp.pth"),
+    os.path.join(state_dict_root, "val_ckp.pth"),
     map_location="cpu"
 )
-
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
- #img, target = vdataset[225]
+img, target = vdataset[225]
 # img, target = vdataset[45]
-img, target = vdataset[105]
+# img, target = vdataset[105]
 # img, target = vdataset[118]
 # img, target = tdataset[600]
 # img, target = vdataset[701]
 img = img.unsqueeze(0)
 target = tuple([t.unsqueeze(0) for t in target])
 prediction = yolov5(img)
-
 decoded_prediction = decode_yolo_tuple(
     yolo_tuple=prediction, 
     img_width=img_width, 

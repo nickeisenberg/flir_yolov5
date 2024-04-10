@@ -14,7 +14,7 @@ from src.yolo_utils.box_viewers import (
 )
 from src.yolov5.yolov5 import YOLOv5
 
-from run_experiment.with_aug_bbox20.config import (
+from run_experiment.with_aug_bbox20_nwloss.config import (
     config_coco,
     config_datasets,
     config_train_module_inputs
@@ -38,15 +38,15 @@ tdataset, vdataset = config_datasets(tcoco, vcoco, anchors, scales)
 yolov5 = YOLOv5(in_channels, num_classes)
 
 sd = torch.load(
-    os.path.join(state_dict_root, "train_ckp.pth"),
+    os.path.join(state_dict_root, "val_ckp.pth"),
     map_location="cpu"
 )
 
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
- #img, target = vdataset[225]
+img, target = vdataset[225]
 # img, target = vdataset[45]
-img, target = vdataset[105]
+# img, target = vdataset[105]
 # img, target = vdataset[118]
 # img, target = tdataset[600]
 # img, target = vdataset[701]
