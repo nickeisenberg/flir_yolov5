@@ -68,13 +68,16 @@ actual = decode_yolo_tuple(
     is_pred=False
 )
 pil_img: Image.Image = transforms.ToPILImage()(img[0])
+
+
 view_pred_vs_actual(
     pil_img, 
     boxes=decoded_prediction[0]["boxes"], 
     scores=decoded_prediction[0]["scores"], 
     labels=decoded_prediction[0]["labels"], 
     boxes_actual=actual[0]["boxes"], 
-    labels_actual=actual[0]["labels"]
+    labels_actual=actual[0]["labels"],
+    label_map={x["id"]: x["name"] for x in vcoco["categories"]}
 )
 
 loss_df = pd.read_csv(os.path.join(loss_log_root, "train_log.csv"))
