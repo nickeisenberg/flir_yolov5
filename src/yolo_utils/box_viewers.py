@@ -127,7 +127,7 @@ def view_pred_vs_actual(img: Image.Image,
         draw_actual.rectangle((x0, y0, x0 + w, y0 + h), outline="green", width=3)
     
     # Display the images side by side
-    fig, ax = plt.subplots(1, 2, figsize=figsize)
+    fig, ax = plt.subplots(2, 1, figsize=figsize)
     ax[0].imshow(img_pred)
     ax[0].set_title('Predicted Boxes')
     ax[0].axis('off')

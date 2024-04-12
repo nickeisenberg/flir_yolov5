@@ -1,3 +1,3 @@
 Yolo v5 on the Flir thermal dataset.
 
-![](/run_experiment/car_and_others/pred_pngs/val225.png) 
+![](/run_experiment/with_aug_bbox20_shuf/pred_pngs/img225.png) 

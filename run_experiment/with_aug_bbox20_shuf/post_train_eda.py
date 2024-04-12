@@ -39,8 +39,8 @@ sd = torch.load(
 yolov5.load_state_dict(sd["MODEL_STATE"])
 
 
-img, target = vdataset[3]
-# img, target = vdataset[225]
+# img, target = vdataset[3]
+img, target = vdataset[225]
 # img, target = vdataset[45]
 # img, target = vdataset[105]
 # img, target = vdataset[118]
