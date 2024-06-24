@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from src.trainer.logger import CSVLogger
 from src.yolov5.yolov5 import YOLOv5
-from src.yolo_utils.loss import YOLOLoss, YOLOLoss2
+from src.yolo_utils.loss import YOLOLoss
 from src.yolo_utils.targets import decode_yolo_tuple
 
 
@@ -41,8 +41,7 @@ class TrainModule(Module):
         else:
             raise Exception("wrong model initialization")
 
-        # self.loss_fn = YOLOLoss()
-        self.loss_fn = YOLOLoss2()
+        self.loss_fn = YOLOLoss()
         self.optimizer = Adam(self.model.parameters(), lr=.0001)
         
         self.img_width, self.img_height = img_width, img_height
@@ -51,7 +50,9 @@ class TrainModule(Module):
         
         _scaled_anchors = []
         for scale_id, scale in enumerate(self.scales):
-            scaled_anchors = deepcopy(self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)].detach())
+            scaled_anchors = deepcopy(
+                self.normalized_anchors[3 * scale_id: 3 * (scale_id + 1)].detach()
+            )
             scaled_anchors *= tensor(
                 [self.img_width / scale ,self.img_height / scale]
             )
