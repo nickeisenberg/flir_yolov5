@@ -166,7 +166,7 @@ class YOLOv3Loss(nn.Module):
     def __init__(self, num_classes, ignore_thresh=0.5, truth_thresh=1.0, 
                  object_scale=5.0, noobject_scale=1.0, class_scale=1.0, 
                  coord_scale=1.0):
-        super(YOLOv3Loss, self).__init__()
+        super().__init__()
         self.num_classes = num_classes
         self.ignore_thresh = ignore_thresh
         self.truth_thresh = truth_thresh

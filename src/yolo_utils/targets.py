@@ -6,6 +6,7 @@ from copy import deepcopy
 
 from ..yolo_utils.utils import iou, nms
 
+
 def build_yolo_target(return_shape: tuple[tuple, ...],
                       bboxes: list[torch.Tensor] | torch.Tensor, 
                       label_ids: list[int] | torch.Tensor, 
@@ -13,9 +14,10 @@ def build_yolo_target(return_shape: tuple[tuple, ...],
                       scales: list[int],
                       img_width: int, 
                       img_height: int,
-                      iou_thresh: float =0.5):
+                      iou_thresh: float = 0.5):
 
-    assert len(return_shape) == len(scales)
+    if not len(return_shape) == len(scales):
+        raise Exception("ERROR: length of return shape must match the length of the scales")
     
     _target = []
     for shape in return_shape:
@@ -40,6 +42,7 @@ def _populate_yolo_target_for_one_bbox(target: tuple[torch.Tensor, ...],
                                        scales: list[int],
                                        iou_thresh=0.5,
                                        by_center=False):
+    """modifys target inplace"""
 
     x, y, w, h = bbox
 
