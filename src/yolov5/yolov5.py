@@ -21,7 +21,6 @@ class YOLOv5(nn.Module):
             SPPF(1024, 1024),
         ])
         
-        self.nc = UpAndCat()
         self.neck = nn.ModuleList([
             Conv(1024, 512, 1, 1, 0),
             C3(1024, 512, 3, False),
@@ -56,7 +55,10 @@ class YOLOv5(nn.Module):
             x = layer(x)
             if isinstance(layer, Conv):
                 neck_skips.append(x)
-                x = self.nc(x, bb_skips.pop().to(device))
+
+                bb_skip = bb_skips.pop().to(device)
+                x = nn.Upsample(tuple(bb_skip.shape[-2:]))(x)
+                x = torch.cat((x, bb_skip), 1)
 
         for layer in self.head:
             if isinstance(layer, nn.Conv2d):
@@ -137,15 +139,6 @@ class C3(nn.Module):
 
     def forward(self, x):
         return self.conv3(torch.cat((self.b(self.conv1(x)), self.conv2(x)), 1))
-
-
-class UpAndCat(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x, skip):
-        x = nn.Upsample(tuple(skip.shape[-2:]))(x)
-        return torch.cat((x, skip), 1)
 
 
 if __name__ == "__main__":
